@@ -8,18 +8,25 @@
       content="width=device-width,
                initial-scale=1.0,
                maximum-scale=1.0,
-               user-scalable=no">
+               user-scalable=no,
+               viewport-fit=cover">
 
 <title>Stream Player</title>
 
 <style>
 
+/* =====================================================
+   RESET
+   ===================================================== */
+
 * {
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
 }
 
 html,
 body {
+
     margin: 0;
     padding: 0;
 
@@ -29,14 +36,19 @@ body {
     overflow: hidden;
 
     background: #000;
+
+    position: fixed;
+
+    inset: 0;
 }
 
 
-/* =========================================
-   الصفحة
-   ========================================= */
+/* =====================================================
+   الصفحة الأساسية
+   ===================================================== */
 
-#page {
+#root {
+
     position: fixed;
 
     inset: 0;
@@ -44,44 +56,41 @@ body {
     width: 100%;
     height: 100%;
 
-    background: #000;
-
     overflow: hidden;
 
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
+    background: #000;
 }
 
 
-/* =========================================
-   الصفحة الأفقية 16:9
-   ========================================= */
+/* =====================================================
+   الحاوية الأفقية
+   ===================================================== */
 
-#landscape {
+#landscapePage {
 
-    position: relative;
+    position: absolute;
 
-    width: min(100vw, 177.7777778vh);
+    left: 50%;
+    top: 50%;
 
-    height: min(100vh, 56.25vw);
+    width: 100vw;
+    height: 100vh;
 
-    aspect-ratio: 16 / 9;
+    transform: translate(-50%, -50%);
 
-    background: #000;
+    transform-origin: center center;
 
     overflow: hidden;
 
-    flex-shrink: 0;
+    background: #000;
 }
 
 
-/* =========================================
-   iframe
-   ========================================= */
+/* =====================================================
+   Web Player
+   ===================================================== */
 
-#player {
+#playerFrame {
 
     position: absolute;
 
@@ -99,6 +108,56 @@ body {
     display: block;
 
     background: #000;
+
+    overflow: hidden;
+}
+
+
+/* =====================================================
+   الوضع الطولي:
+   نقوم بتدوير محتوى الصفحة فقط
+   وليس الهاتف
+   ===================================================== */
+
+@media (orientation: portrait) {
+
+    #landscapePage {
+
+        width: 100vh;
+        height: 100vw;
+
+        width: 100dvh;
+        height: 100dvw;
+
+        transform:
+            translate(-50%, -50%)
+            rotate(90deg);
+
+    }
+
+}
+
+
+/* =====================================================
+   الوضع الأفقي:
+   بدون تدوير
+   ===================================================== */
+
+@media (orientation: landscape) {
+
+    #landscapePage {
+
+        width: 100vw;
+        height: 100vh;
+
+        width: 100dvw;
+        height: 100dvh;
+
+        transform:
+            translate(-50%, -50%);
+
+    }
+
 }
 
 </style>
@@ -108,18 +167,18 @@ body {
 
 <body>
 
-<div id="page">
+<div id="root">
 
-    <div id="landscape">
+    <div id="landscapePage">
 
         <iframe
-            id="player"
+            id="playerFrame"
 
             allow="
                 autoplay;
                 encrypted-media;
-                picture-in-picture;
-                fullscreen
+                fullscreen;
+                picture-in-picture
             "
 
             allowfullscreen
@@ -129,6 +188,8 @@ body {
             mozallowfullscreen
 
             scrolling="no"
+
+            frameborder="0"
 
             referrerpolicy="no-referrer">
         </iframe>
@@ -140,146 +201,274 @@ body {
 
 <script>
 
-(function () {
+/* =====================================================
+   إعدادات
+   ===================================================== */
 
-    "use strict";
+const STREAMS_FILE = "streams.json";
 
-
-    /* =========================================
-       إعدادات البث
-       ========================================= */
-
-    const STREAMS_FILE =
-        "streams.json";
-
-    const PLAYER_HOST =
-        "https://912acsss8af382.yasirtv.com";
+const PLAYER_HOST =
+    "https://912acsss8af382.yasirtv.com";
 
 
-    const player =
-        document.getElementById("player");
+const iframe =
+    document.getElementById("playerFrame");
+
+const page =
+    document.getElementById("landscapePage");
 
 
-    /* =========================================
-       قراءة stream
-       مثال:
+/* =====================================================
+   قراءة stream
+   ===================================================== */
 
-       ?stream=match1
-       ========================================= */
+const params =
+    new URLSearchParams(
+        window.location.search
+    );
 
-    const params =
-        new URLSearchParams(
-            window.location.search
-        );
-
-    const streamKey =
-        params.get("stream");
+const streamKey =
+    params.get("stream");
 
 
-    /* =========================================
-       تحميل البث
-       ========================================= */
+/* =====================================================
+   التحقق من ID
+   ===================================================== */
 
-    async function loadStream() {
+function isValidKey(value) {
 
-        try {
+    return (
+        typeof value === "string" &&
+        /^[A-Za-z0-9_-]+$/.test(value)
+    );
 
-            if (
-                !streamKey ||
-                !/^[A-Za-z0-9_-]+$/.test(
-                    streamKey
-                )
-            ) {
-
-                throw new Error(
-                    "Stream غير صالح"
-                );
-
-            }
+}
 
 
-            const response =
-                await fetch(
-                    STREAMS_FILE +
-                    "?v=" +
-                    Date.now(),
-                    {
-                        cache: "no-store"
-                    }
-                );
+/* =====================================================
+   ضبط الصفحة
+   ===================================================== */
+
+function resizePage() {
+
+    const width =
+        window.innerWidth;
+
+    const height =
+        window.innerHeight;
 
 
-            if (!response.ok) {
-
-                throw new Error(
-                    "تعذر تحميل streams.json"
-                );
-
-            }
+    if (!width || !height) {
+        return;
+    }
 
 
-            const data =
-                await response.json();
+    /*
+     * الصفحة الطولية:
+     * ندور المحتوى فقط.
+     */
+
+    if (height > width) {
+
+        page.style.width =
+            height + "px";
+
+        page.style.height =
+            width + "px";
+
+        page.style.transform =
+            "translate(-50%, -50%) rotate(90deg)";
+
+    }
+
+    /*
+     * الصفحة الأفقية:
+     * لا يوجد تدوير.
+     */
+
+    else {
+
+        page.style.width =
+            width + "px";
+
+        page.style.height =
+            height + "px";
+
+        page.style.transform =
+            "translate(-50%, -50%)";
+
+    }
+
+}
 
 
-            const stream =
-                data?.streams?.[streamKey];
+/* =====================================================
+   تحميل البث
+   ===================================================== */
 
+async function loadStream() {
 
-            if (!stream) {
+    try {
 
-                throw new Error(
-                    "البث غير موجود"
-                );
+        if (!isValidKey(streamKey)) {
 
-            }
-
-
-            const match =
-                String(stream.match);
-
-
-            if (
-                !/^[A-Za-z0-9_-]+$/.test(
-                    match
-                )
-            ) {
-
-                throw new Error(
-                    "Match ID غير صالح"
-                );
-
-            }
-
-
-            player.src =
-                PLAYER_HOST +
-                "/playerv5.php?match=" +
-                encodeURIComponent(
-                    match
-                );
-
-
-        } catch (error) {
-
-            console.error(
-                "Player Error:",
-                error
+            throw new Error(
+                "Invalid stream ID"
             );
 
         }
 
+
+        const response =
+            await fetch(
+                STREAMS_FILE +
+                "?v=" +
+                Date.now(),
+                {
+                    cache: "no-store"
+                }
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Cannot load streams.json"
+            );
+
+        }
+
+
+        const data =
+            await response.json();
+
+
+        const stream =
+            data &&
+            data.streams &&
+            data.streams[streamKey];
+
+
+        if (!stream) {
+
+            throw new Error(
+                "Stream not found: " +
+                streamKey
+            );
+
+        }
+
+
+        const match =
+            String(stream.match || "");
+
+
+        if (
+            !/^[A-Za-z0-9_-]+$/.test(match)
+        ) {
+
+            throw new Error(
+                "Invalid match ID"
+            );
+
+        }
+
+
+        /*
+         * رابط المشغل الأصلي
+         */
+
+        iframe.src =
+            PLAYER_HOST +
+            "/playerv5.php?match=" +
+            encodeURIComponent(match);
+
+
+    } catch (error) {
+
+        console.error(
+            "Stream Player:",
+            error
+        );
+
     }
 
-
-    /* =========================================
-       تشغيل
-       ========================================= */
-
-    loadStream();
+}
 
 
-})();
+/* =====================================================
+   تهيئة
+   ===================================================== */
+
+resizePage();
+
+loadStream();
+
+
+/* =====================================================
+   مراقبة تغيير حجم WebView
+   ===================================================== */
+
+window.addEventListener(
+    "resize",
+    resizePage,
+    {
+        passive: true
+    }
+);
+
+
+window.addEventListener(
+    "orientationchange",
+    function () {
+
+        setTimeout(resizePage, 50);
+        setTimeout(resizePage, 200);
+        setTimeout(resizePage, 500);
+
+    },
+    {
+        passive: true
+    }
+);
+
+
+/* =====================================================
+   visualViewport
+   مهم جدًا داخل Android WebView
+   ===================================================== */
+
+if (window.visualViewport) {
+
+    window.visualViewport.addEventListener(
+        "resize",
+        resizePage,
+        {
+            passive: true
+        }
+    );
+
+}
+
+
+/* =====================================================
+   ResizeObserver
+   ===================================================== */
+
+if (window.ResizeObserver) {
+
+    const observer =
+        new ResizeObserver(
+            function () {
+                resizePage();
+            }
+        );
+
+    observer.observe(
+        document.documentElement
+    );
+
+}
 
 </script>
 
