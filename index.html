@@ -1,18 +1,22 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
+
 <meta charset="UTF-8">
 
 <meta name="viewport"
       content="width=device-width,
                initial-scale=1.0,
                maximum-scale=1.0,
-               user-scalable=no,
-               viewport-fit=cover">
+               user-scalable=no">
 
-<title>Player</title>
+<title>Stream Player</title>
 
 <style>
+
+* {
+    box-sizing: border-box;
+}
 
 html,
 body {
@@ -22,33 +26,23 @@ body {
     width: 100%;
     height: 100%;
 
-    background: #000;
-
     overflow: hidden;
 
-    position: fixed;
-    inset: 0;
+    background: #000;
 }
 
 
 /* =========================================
-   المساحة الكاملة
+   الصفحة
    ========================================= */
 
-#stage {
-
+#page {
     position: fixed;
 
     inset: 0;
 
-    width: 100vw;
-    height: 100vh;
-
-    width: 100dvw;
-    height: 100dvh;
-
-    margin: 0;
-    padding: 0;
+    width: 100%;
+    height: 100%;
 
     background: #000;
 
@@ -62,15 +56,18 @@ body {
 
 
 /* =========================================
-   إطار الفيديو الحقيقي
+   الصفحة الأفقية 16:9
    ========================================= */
 
-#videoBox {
+#landscape {
 
     position: relative;
 
-    margin: 0;
-    padding: 0;
+    width: min(100vw, 177.7777778vh);
+
+    height: min(100vh, 56.25vw);
+
+    aspect-ratio: 16 / 9;
 
     background: #000;
 
@@ -105,24 +102,31 @@ body {
 }
 
 </style>
+
 </head>
 
 
 <body>
 
-<div id="stage">
+<div id="page">
 
-    <div id="videoBox">
+    <div id="landscape">
 
         <iframe
             id="player"
-            title="Video Player"
 
             allow="
                 autoplay;
                 encrypted-media;
-                picture-in-picture
+                picture-in-picture;
+                fullscreen
             "
+
+            allowfullscreen
+
+            webkitallowfullscreen
+
+            mozallowfullscreen
 
             scrolling="no"
 
@@ -142,27 +146,25 @@ body {
 
 
     /* =========================================
-       الإعدادات
+       إعدادات البث
        ========================================= */
 
-    const STREAMS_FILE = "streams.json";
+    const STREAMS_FILE =
+        "streams.json";
 
     const PLAYER_HOST =
         "https://912acsss8af382.yasirtv.com";
 
-
-    const stage =
-        document.getElementById("stage");
-
-    const videoBox =
-        document.getElementById("videoBox");
 
     const player =
         document.getElementById("player");
 
 
     /* =========================================
-       Stream ID
+       قراءة stream
+       مثال:
+
+       ?stream=match1
        ========================================= */
 
     const params =
@@ -175,143 +177,6 @@ body {
 
 
     /* =========================================
-       التحقق
-       ========================================= */
-
-    function validKey(value) {
-
-        return (
-            typeof value === "string" &&
-            /^[A-Za-z0-9_-]+$/.test(value)
-        );
-
-    }
-
-
-    /* =========================================
-       حساب الفيديو بدقة
-       ========================================= */
-
-    function resizePlayer() {
-
-        /*
-         * نأخذ الحجم الحقيقي للـWebView
-         */
-
-        const width =
-            window.innerWidth;
-
-        const height =
-            window.innerHeight;
-
-
-        if (
-            width <= 0 ||
-            height <= 0
-        ) {
-            return;
-        }
-
-
-        /*
-         * 16:9
-         */
-
-        const ratio = 16 / 9;
-
-
-        let videoWidth;
-        let videoHeight;
-
-
-        /*
-         * Landscape
-         */
-
-        if (width >= height) {
-
-            /*
-             * نعتمد الارتفاع الحقيقي
-             */
-
-            videoHeight = height;
-
-            videoWidth =
-                videoHeight * ratio;
-
-
-            /*
-             * حماية من تجاوز العرض
-             */
-
-            if (videoWidth > width) {
-
-                videoWidth = width;
-
-                videoHeight =
-                    videoWidth / ratio;
-
-            }
-
-        }
-
-        /*
-         * Portrait
-         */
-
-        else {
-
-            /*
-             * نعتمد العرض
-             */
-
-            videoWidth = width;
-
-            videoHeight =
-                videoWidth / ratio;
-
-
-            /*
-             * حماية من تجاوز الارتفاع
-             */
-
-            if (videoHeight > height) {
-
-                videoHeight = height;
-
-                videoWidth =
-                    videoHeight * ratio;
-
-            }
-
-        }
-
-
-        /*
-         * تقريب بدون كسور
-         */
-
-        videoWidth =
-            Math.floor(videoWidth);
-
-        videoHeight =
-            Math.floor(videoHeight);
-
-
-        /*
-         * تطبيق الحجم
-         */
-
-        videoBox.style.width =
-            videoWidth + "px";
-
-        videoBox.style.height =
-            videoHeight + "px";
-
-    }
-
-
-    /* =========================================
        تحميل البث
        ========================================= */
 
@@ -319,10 +184,15 @@ body {
 
         try {
 
-            if (!validKey(streamKey)) {
+            if (
+                !streamKey ||
+                !/^[A-Za-z0-9_-]+$/.test(
+                    streamKey
+                )
+            ) {
 
                 throw new Error(
-                    "Invalid stream"
+                    "Stream غير صالح"
                 );
 
             }
@@ -342,7 +212,7 @@ body {
             if (!response.ok) {
 
                 throw new Error(
-                    "streams.json error"
+                    "تعذر تحميل streams.json"
                 );
 
             }
@@ -359,150 +229,54 @@ body {
             if (!stream) {
 
                 throw new Error(
-                    "Stream not found"
+                    "البث غير موجود"
                 );
 
             }
 
 
+            const match =
+                String(stream.match);
+
+
             if (
-                typeof stream.match !== "string" ||
                 !/^[A-Za-z0-9_-]+$/.test(
-                    stream.match
+                    match
                 )
             ) {
 
                 throw new Error(
-                    "Invalid match ID"
+                    "Match ID غير صالح"
                 );
 
             }
 
-
-            /*
-             * رابط المشغل الأصلي
-             */
 
             player.src =
                 PLAYER_HOST +
                 "/playerv5.php?match=" +
                 encodeURIComponent(
-                    stream.match
+                    match
                 );
 
 
         } catch (error) {
 
             console.error(
-                "Player error:",
+                "Player Error:",
                 error
             );
 
-            player.removeAttribute(
-                "src"
-            );
-
         }
 
     }
 
 
     /* =========================================
-       البداية
+       تشغيل
        ========================================= */
-
-    resizePlayer();
 
     loadStream();
-
-
-    /* =========================================
-       Resize
-       ========================================= */
-
-    window.addEventListener(
-        "resize",
-        function () {
-
-            resizePlayer();
-
-        },
-        {
-            passive: true
-        }
-    );
-
-
-    /* =========================================
-       Orientation
-       ========================================= */
-
-    window.addEventListener(
-        "orientationchange",
-        function () {
-
-            setTimeout(
-                resizePlayer,
-                50
-            );
-
-            setTimeout(
-                resizePlayer,
-                150
-            );
-
-            setTimeout(
-                resizePlayer,
-                350
-            );
-
-            setTimeout(
-                resizePlayer,
-                700
-            );
-
-        },
-        {
-            passive: true
-        }
-    );
-
-
-    /* =========================================
-       visualViewport
-       ========================================= */
-
-    if (window.visualViewport) {
-
-        window.visualViewport.addEventListener(
-            "resize",
-            resizePlayer,
-            {
-                passive: true
-            }
-        );
-
-    }
-
-
-    /* =========================================
-       ResizeObserver
-       ========================================= */
-
-    if (window.ResizeObserver) {
-
-        const observer =
-            new ResizeObserver(
-                function () {
-
-                    resizePlayer();
-
-                }
-            );
-
-        observer.observe(stage);
-
-    }
 
 
 })();
