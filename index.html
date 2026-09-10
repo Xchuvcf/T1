@@ -9,44 +9,52 @@
 <title>Player</title>
 
 <style>
-* {
-    box-sizing: border-box;
-}
-
 html, body {
     margin: 0;
     padding: 0;
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     background: #000;
     overflow: hidden;
 }
 
-/* المشغل صغير */
-.player {
-    position: fixed;
-    width: 400px;
-    height: 225px;
+/* الحاوية */
+.player-container {
+    width: 640px;
+    height: 360px;
 
+    position: fixed;
     top: 50%;
     left: 50%;
 
     transform: translate(-50%, -50%);
 }
 
-.player iframe {
-    width: 100%;
-    height: 100%;
+/* المشغل */
+.player-container iframe {
+    display: block;
+
+    width: 640px;
+    height: 360px;
 
     border: 0;
-    display: block;
+    margin: 0;
+    padding: 0;
 }
+    
+/* الهاتف */
+@media (max-width: 700px) {
+    .player-container {
+        width: 100vw;
+        height: 56.25vw;
 
-/* على الشاشات الصغيرة */
-@media (max-width: 430px) {
-    .player {
-        width: 90vw;
-        height: calc(90vw * 9 / 16);
+        max-width: 640px;
+        max-height: 360px;
+    }
+
+    .player-container iframe {
+        width: 100%;
+        height: 100%;
     }
 }
 </style>
@@ -54,13 +62,13 @@ html, body {
 
 <body>
 
-<div class="player">
+<div class="player-container">
 
     <iframe
         src="https://912acsss8af382.yasirtv.com/playerv5.php?match=4828487"
         frameborder="0"
-        scrolling="no"
         allowfullscreen
+        scrolling="no"
         referrerpolicy="no-referrer">
     </iframe>
 
@@ -69,94 +77,20 @@ html, body {
 <script>
 "use strict";
 
-/*
- * حماية الصفحة من النوافذ المنبثقة
- */
-
+/* منع النوافذ المنبثقة من الصفحة الخارجية */
 window.open = function () {
     return null;
 };
 
-/*
- * منع بعض طرق فتح تبويب جديد
- */
-
+/* منع فتح تبويبات جديدة من الصفحة */
 document.addEventListener("click", function (event) {
-
     const link = event.target.closest("a");
 
-    if (!link) return;
-
-    if (
-        link.target === "_blank" ||
-        link.target === "_new"
-    ) {
+    if (link && link.target === "_blank") {
         event.preventDefault();
         event.stopImmediatePropagation();
     }
-
 }, true);
-
-
-/*
- * منع إنشاء نوافذ جديدة من بعض الأحداث
- */
-
-document.addEventListener("auxclick", function(event) {
-
-    if (event.button === 1) {
-        event.preventDefault();
-    }
-
-}, true);
-
-
-/*
- * إزالة عناصر الإعلانات الشائعة الموجودة
- * في الصفحة التي نتحكم بها.
- */
-
-function removeAds() {
-
-    const selectors = [
-        '[class*="ad-"]',
-        '[class*="ads-"]',
-        '[class*="advert"]',
-        '[class*="banner"]',
-        '[id*="ad-"]',
-        '[id*="ads-"]',
-        '[id*="advert"]',
-        '[id*="banner"]',
-        'ins.adsbygoogle'
-    ];
-
-    document.querySelectorAll(
-        selectors.join(",")
-    ).forEach(element => {
-
-        if (!element.closest(".player")) {
-            element.remove();
-        }
-
-    });
-}
-
-
-/*
- * مراقبة الصفحة وإزالة العناصر الإعلانية
- */
-
-const observer = new MutationObserver(() => {
-    removeAds();
-});
-
-observer.observe(document.documentElement, {
-    childList: true,
-    subtree: true
-});
-
-removeAds();
-
 </script>
 
 </body>
