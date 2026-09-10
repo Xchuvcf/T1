@@ -2,26 +2,17 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0,
-               maximum-scale=1.0, user-scalable=no">
 
-<meta http-equiv="Content-Security-Policy"
-      content="
-      default-src 'self' https://912acsss8af382.yasirtv.com;
-      frame-src https://912acsss8af382.yasirtv.com;
-      img-src 'self' data:;
-      style-src 'self' 'unsafe-inline';
-      script-src 'self' 'unsafe-inline';
-      connect-src 'self';
-      object-src 'none';
-      base-uri 'none';
-      form-action 'none';
-      ">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
 
 <title>Player</title>
 
 <style>
+* {
+    box-sizing: border-box;
+}
+
 html, body {
     margin: 0;
     padding: 0;
@@ -31,20 +22,32 @@ html, body {
     overflow: hidden;
 }
 
+/* المشغل صغير */
 .player {
-    position: absolute;
-    width: min(100vw, 640px);
-    aspect-ratio: 16 / 9;
+    position: fixed;
+    width: 400px;
+    height: 225px;
+
     top: 50%;
     left: 50%;
+
     transform: translate(-50%, -50%);
 }
 
-iframe {
-    display: block;
+.player iframe {
     width: 100%;
     height: 100%;
+
     border: 0;
+    display: block;
+}
+
+/* على الشاشات الصغيرة */
+@media (max-width: 430px) {
+    .player {
+        width: 90vw;
+        height: calc(90vw * 9 / 16);
+    }
 }
 </style>
 </head>
@@ -52,59 +55,108 @@ iframe {
 <body>
 
 <div class="player">
+
     <iframe
         src="https://912acsss8af382.yasirtv.com/playerv5.php?match=4828487"
         frameborder="0"
-        allowfullscreen
         scrolling="no"
+        allowfullscreen
         referrerpolicy="no-referrer">
     </iframe>
+
 </div>
 
 <script>
 "use strict";
 
 /*
- * حماية الصفحة من بعض أنواع النوافذ المنبثقة
- * وإعادة التوجيه التي تحدث خارج iframe.
+ * حماية الصفحة من النوافذ المنبثقة
  */
 
-const originalOpen = window.open;
-
 window.open = function () {
-    console.warn("Blocked popup");
     return null;
 };
 
-/* منع بعض محاولات فتح روابط جديدة */
+/*
+ * منع بعض طرق فتح تبويب جديد
+ */
+
 document.addEventListener("click", function (event) {
+
     const link = event.target.closest("a");
 
     if (!link) return;
 
-    if (link.target === "_blank") {
+    if (
+        link.target === "_blank" ||
+        link.target === "_new"
+    ) {
         event.preventDefault();
-        event.stopPropagation();
+        event.stopImmediatePropagation();
     }
+
 }, true);
 
-/* محاولة تثبيت الاتجاه الأفقي */
-async function lockLandscape() {
-    try {
-        if (screen.orientation &&
-            screen.orientation.lock) {
 
-            await screen.orientation.lock("landscape");
-        }
-    } catch (error) {
-        console.log("Landscape lock unavailable");
+/*
+ * منع إنشاء نوافذ جديدة من بعض الأحداث
+ */
+
+document.addEventListener("auxclick", function(event) {
+
+    if (event.button === 1) {
+        event.preventDefault();
     }
+
+}, true);
+
+
+/*
+ * إزالة عناصر الإعلانات الشائعة الموجودة
+ * في الصفحة التي نتحكم بها.
+ */
+
+function removeAds() {
+
+    const selectors = [
+        '[class*="ad-"]',
+        '[class*="ads-"]',
+        '[class*="advert"]',
+        '[class*="banner"]',
+        '[id*="ad-"]',
+        '[id*="ads-"]',
+        '[id*="advert"]',
+        '[id*="banner"]',
+        'ins.adsbygoogle'
+    ];
+
+    document.querySelectorAll(
+        selectors.join(",")
+    ).forEach(element => {
+
+        if (!element.closest(".player")) {
+            element.remove();
+        }
+
+    });
 }
 
-lockLandscape();
 
-/* عند الدخول إلى وضع ملء الشاشة نحاول تثبيت Landscape */
-document.addEventListener("fullscreenchange", lockLandscape);
+/*
+ * مراقبة الصفحة وإزالة العناصر الإعلانية
+ */
+
+const observer = new MutationObserver(() => {
+    removeAds();
+});
+
+observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true
+});
+
+removeAds();
+
 </script>
 
 </body>
