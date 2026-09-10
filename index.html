@@ -24,41 +24,58 @@ body {
     overflow: hidden;
 }
 
-/*
- * مساحة المشغل
- * أصغر قليلًا من نافذة التطبيق
- */
-#root {
+#stage {
     position: fixed;
 
-    width: 92%;
-    height: 92%;
-
-    left: 4%;
-    top: 4%;
-
-    overflow: hidden;
-
-    background: #000;
-}
-
-/*
- * مشغل YasirTV
- */
-#player {
-    position: absolute;
-
-    left: 0;
-    top: 0;
+    inset: 0;
 
     width: 100%;
     height: 100%;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    background: #000;
+
+    overflow: hidden;
+}
+
+/*
+ * الحاوية الحقيقية للمشغل
+ */
+#playerBox {
+    position: relative;
+
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+}
+
+/*
+ * iframe
+ *
+ * يتم تحديد حجمه بواسطة JavaScript
+ * للحفاظ على نسبة 16:9
+ */
+#player {
+    display: block;
+
+    width: 640px;
+    height: 360px;
 
     border: 0;
     margin: 0;
     padding: 0;
 
-    display: block;
+    flex: none;
 
     background: #000;
 }
@@ -67,17 +84,21 @@ body {
 
 <body>
 
-<div id="root">
+<div id="stage">
 
-    <iframe
-        id="player"
-        title="Video Player"
-        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-        allowfullscreen
-        webkitallowfullscreen="true"
-        scrolling="no"
-        referrerpolicy="no-referrer">
-    </iframe>
+    <div id="playerBox">
+
+        <iframe
+            id="player"
+            title="Video Player"
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+            allowfullscreen
+            webkitallowfullscreen="true"
+            scrolling="no"
+            referrerpolicy="no-referrer">
+        </iframe>
+
+    </div>
 
 </div>
 
@@ -86,14 +107,11 @@ body {
 
     "use strict";
 
-    const params = new URLSearchParams(window.location.search);
+    const params =
+        new URLSearchParams(window.location.search);
 
-    /*
-     * مثال:
-     * ?match=4828487
-     */
-
-    const match = params.get("match") || "4828487";
+    const match =
+        params.get("match") || "4828487";
 
     /*
      * حماية رقم المباراة
@@ -103,10 +121,11 @@ body {
         return;
     }
 
-    const player = document.getElementById("player");
+    const player =
+        document.getElementById("player");
 
     /*
-     * رابط YasirTV الأصلي
+     * رابط المشغل الأصلي
      */
     player.src =
         "https://912acsss8af382.yasirtv.com/playerv5.php?match=" +
@@ -114,66 +133,108 @@ body {
 
 
     /*
-     * تحديث الحجم عند تغيير حجم نافذة
+     * تغيير الحجم تلقائيًا
      */
-    function updateSize() {
+    function resizePlayer() {
 
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+        const box =
+            document.getElementById("playerBox");
+
+        const availableWidth =
+            box.clientWidth;
+
+        const availableHeight =
+            box.clientHeight;
 
         /*
-         * 92% من مساحة WebView
+         * نسبة المشغل الأصلية
          */
-        const playerWidth = Math.floor(width * 0.92);
-        const playerHeight = Math.floor(height * 0.92);
+        const aspectRatio =
+            16 / 9;
 
         /*
-         * توسيط المشغل
+         * نحسب الحجم المناسب للعرض
          */
-        const left = Math.floor((width - playerWidth) / 2);
-        const top = Math.floor((height - playerHeight) / 2);
+        let width =
+            availableWidth;
 
-        player.style.width = playerWidth + "px";
-        player.style.height = playerHeight + "px";
+        let height =
+            width / aspectRatio;
 
-        player.style.left = "0px";
-        player.style.top = "0px";
+        /*
+         * إذا أصبح الارتفاع أكبر من المساحة
+         * المتاحة، نعتمد الارتفاع بدل العرض
+         */
+        if (height > availableHeight) {
 
-        const root = document.getElementById("root");
+            height =
+                availableHeight;
 
-        root.style.width = playerWidth + "px";
-        root.style.height = playerHeight + "px";
+            width =
+                height * aspectRatio;
+        }
 
-        root.style.left = left + "px";
-        root.style.top = top + "px";
+        /*
+         * هامش بسيط جدًا حتى لا يحدث قص
+         * بسبب اختلافات WebView
+         */
+        const safeMargin = 0.98;
+
+        width *= safeMargin;
+        height *= safeMargin;
+
+        /*
+         * تطبيق الحجم النهائي
+         */
+        player.style.width =
+            Math.floor(width) + "px";
+
+        player.style.height =
+            Math.floor(height) + "px";
     }
 
 
     /*
-     * أول تشغيل
+     * تشغيل أولي
      */
-    updateSize();
+    resizePlayer();
 
 
     /*
-     * عند تغيير حجم نافذة تطبيق المشاهدة
+     * مراقبة أي تغيير حقيقي في حجم WebView
+     */
+    if (window.ResizeObserver) {
+
+        const observer =
+            new ResizeObserver(function () {
+
+                resizePlayer();
+
+            });
+
+        observer.observe(
+            document.getElementById("stage")
+        );
+
+    }
+
+
+    /*
+     * احتياط للمتصفحات/WebView القديمة
      */
     window.addEventListener(
         "resize",
-        updateSize,
+        resizePlayer,
         { passive: true }
     );
 
 
-    /*
-     * عند تغيير اتجاه الجهاز
-     */
     window.addEventListener(
         "orientationchange",
         function () {
 
             setTimeout(
-                updateSize,
+                resizePlayer,
                 300
             );
 
@@ -183,7 +244,7 @@ body {
 
 
     /*
-     * منع Pop-up من الصفحة الوسيطة
+     * منع Pop-ups من الصفحة الوسيطة
      */
     window.open = function () {
         return null;
@@ -208,7 +269,6 @@ body {
                 event.preventDefault();
 
                 event.stopImmediatePropagation();
-
             }
 
         },
