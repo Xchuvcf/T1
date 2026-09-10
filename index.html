@@ -4,34 +4,41 @@
 <meta charset="UTF-8">
 
 <meta name="viewport"
-      content="width=device-width, initial-scale=1.0">
+      content="width=device-width,
+               initial-scale=1.0,
+               maximum-scale=1.0,
+               user-scalable=no">
 
 <title>Player</title>
 
 <style>
-html, body {
+html,
+body {
     margin: 0;
     padding: 0;
     width: 100%;
-    min-height: 100%;
+    height: 100%;
     background: #000;
     overflow: hidden;
 }
 
-/* الحاوية */
-.player-container {
+/*
+   الحجم الأصلي لمشغل YasirTV
+   640 × 360
+*/
+.player-wrapper {
+    position: absolute;
+
     width: 640px;
     height: 360px;
 
-    position: fixed;
-    top: 50%;
     left: 50%;
+    top: 50%;
 
-    transform: translate(-50%, -50%);
+    transform-origin: center center;
 }
 
-/* المشغل */
-.player-container iframe {
+.player-wrapper iframe {
     display: block;
 
     width: 640px;
@@ -41,28 +48,12 @@ html, body {
     margin: 0;
     padding: 0;
 }
-    
-/* الهاتف */
-@media (max-width: 700px) {
-    .player-container {
-        width: 100vw;
-        height: 56.25vw;
-
-        max-width: 640px;
-        max-height: 360px;
-    }
-
-    .player-container iframe {
-        width: 100%;
-        height: 100%;
-    }
-}
 </style>
 </head>
 
 <body>
 
-<div class="player-container">
+<div class="player-wrapper" id="player">
 
     <iframe
         src="https://912acsss8af382.yasirtv.com/playerv5.php?match=4828487"
@@ -75,22 +66,52 @@ html, body {
 </div>
 
 <script>
-"use strict";
 
-/* منع النوافذ المنبثقة من الصفحة الخارجية */
-window.open = function () {
-    return null;
-};
+const player = document.getElementById("player");
 
-/* منع فتح تبويبات جديدة من الصفحة */
-document.addEventListener("click", function (event) {
-    const link = event.target.closest("a");
+function resizePlayer() {
 
-    if (link && link.target === "_blank") {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-    }
-}, true);
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    /*
+       الحجم الأصلي
+    */
+    const originalWidth = 640;
+    const originalHeight = 360;
+
+    /*
+       نحسب أفضل Scale بدون تشويه
+    */
+    const scaleX = viewportWidth / originalWidth;
+    const scaleY = viewportHeight / originalHeight;
+
+    const scale = Math.min(scaleX, scaleY);
+
+    /*
+       تكبير/تصغير المشغل بالكامل
+    */
+    player.style.transform =
+        `translate(-50%, -50%) scale(${scale})`;
+}
+
+/*
+   عند فتح الصفحة
+*/
+resizePlayer();
+
+/*
+   عند تغيير حجم نافذة التطبيق
+*/
+window.addEventListener("resize", resizePlayer);
+
+/*
+   عند تغيير الاتجاه
+*/
+window.addEventListener("orientationchange", () => {
+    setTimeout(resizePlayer, 150);
+});
+
 </script>
 
 </body>
