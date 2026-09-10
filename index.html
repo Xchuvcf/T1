@@ -2,60 +2,66 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Player</title>
 
 <style>
-html,
-body {
+html, body {
     margin: 0;
     padding: 0;
     width: 100%;
     height: 100%;
+    overflow: hidden;
     background: #000;
+}
+
+#stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
 }
 
-.player {
-    position: fixed;
-
+/*
+ * الحجم الأصلي لمشغل YasirTV
+ * نحافظ عليه حتى لا يتغير تخطيطه الداخلي.
+ */
+#player {
     width: 640px;
     height: 360px;
-
-    left: 50%;
-    top: 50%;
+    flex: 0 0 640px;
 
     transform-origin: center center;
 }
 
-.player iframe {
+#player iframe {
     display: block;
-
     width: 640px;
     height: 360px;
-
+    border: 0;
     margin: 0;
     padding: 0;
-    border: 0;
-
-    overflow: hidden;
 }
 </style>
 </head>
 
 <body>
 
-<div class="player" id="player">
+<div id="stage">
 
-    <iframe
-        src="https://912acsss8af382.yasirtv.com/playerv5.php?match=4828487"
-        frameborder="0"
-        scrolling="no"
-        allowfullscreen>
-    </iframe>
+    <div id="player">
+
+        <iframe
+            src="https://912acsss8af382.yasirtv.com/playerv5.php?match=4828487"
+            frameborder="0"
+            allowfullscreen
+            scrolling="no">
+        </iframe>
+
+    </div>
 
 </div>
 
@@ -64,30 +70,31 @@ const player = document.getElementById("player");
 
 function resizePlayer() {
 
-    const baseWidth = 640;
-    const baseHeight = 360;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
 
-    const availableWidth = window.innerWidth;
-    const availableHeight = window.innerHeight;
-
-    const scaleX = availableWidth / baseWidth;
-    const scaleY = availableHeight / baseHeight;
+    const baseW = 640;
+    const baseH = 360;
 
     /*
-     * يسمح بالتصغير فقط.
-     * يمنع تكبير المشغل فوق 640×360.
+     * تصغير فقط عند الحاجة.
+     * لا نغير الـviewport الداخلي للمشغل.
      */
-    const scale = Math.min(1, scaleX, scaleY);
+    const scale = Math.min(
+        1,
+        w / baseW,
+        h / baseH
+    );
 
     player.style.transform =
-        `translate(-50%, -50%) scale(${scale})`;
+        "scale(" + scale + ")";
 }
 
 resizePlayer();
 
 window.addEventListener("resize", resizePlayer);
 
-window.addEventListener("orientationchange", () => {
+window.addEventListener("orientationchange", function () {
     setTimeout(resizePlayer, 200);
 });
 </script>
