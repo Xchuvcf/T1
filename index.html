@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
+
 <meta charset="UTF-8">
 
 <meta name="viewport"
@@ -10,152 +11,161 @@
       user-scalable=no,
       viewport-fit=cover">
 
-<title>Video Player</title>
+<title>Player</title>
 
 <style>
-* {
-    box-sizing: border-box;
-}
 
 html,
 body {
     width: 100%;
     height: 100%;
+
     margin: 0;
     padding: 0;
 
     background: #000;
+
     overflow: hidden;
 
-    overscroll-behavior: none;
-}
-
-#stage {
     position: fixed;
 
-    top: env(safe-area-inset-top, 0px);
-    right: env(safe-area-inset-right, 0px);
-    bottom: env(safe-area-inset-bottom, 0px);
-    left: env(safe-area-inset-left, 0px);
+    inset: 0;
+}
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
+
+/* =========================================
+   الصفحة الرئيسية
+   ========================================= */
+
+#stage {
+
+    position: fixed;
+
+    inset: 0;
+
+    width: 100vw;
+    height: 100vh;
+
+    width: 100dvw;
+    height: 100dvh;
 
     overflow: hidden;
 
     background: #000;
+
+    display: block;
 }
 
-#playerBox {
-    position: relative;
 
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    overflow: hidden;
-
-    background: #000;
-
-    flex: 0 0 auto;
-}
+/* =========================================
+   المشغل
+   ========================================= */
 
 #player {
-    display: block;
+
+    position: absolute;
+
+    /*
+     * يأخذ المساحة كاملة
+     */
+    left: 0;
+    top: 0;
 
     width: 100%;
     height: 100%;
 
+    min-width: 0;
+    min-height: 0;
+
+    max-width: none;
+    max-height: none;
+
     border: 0;
+
     margin: 0;
     padding: 0;
 
+    display: block;
+
     background: #000;
 
-    flex: 0 0 auto;
 }
+
 </style>
+
 </head>
+
 
 <body>
 
+
 <div id="stage">
 
-    <div id="playerBox">
+    <iframe
+        id="player"
 
-        <iframe
-            id="player"
-            title="Video Player"
+        title="Video Player"
 
-            allow="autoplay; encrypted-media; picture-in-picture"
+        allow="
+            autoplay;
+            encrypted-media;
+            picture-in-picture
+        "
 
-            scrolling="no"
+        scrolling="no"
 
-            referrerpolicy="no-referrer">
-        </iframe>
-
-    </div>
+        referrerpolicy="no-referrer">
+    </iframe>
 
 </div>
 
+
 <script>
+
 (function () {
 
     "use strict";
 
-    /* ==============================
+
+    /* =========================================
        الإعدادات
-       ============================== */
+       ========================================= */
 
     const CONFIG = {
 
         streamsFile: "streams.json",
 
         playerHost:
-            "https://912acsss8af382.yasirtv.com",
-
-        aspectRatio: 16 / 9,
-
-        /*
-         * هامش أمان حتى لا يخرج
-         * أي جزء خارج الشاشة
-         */
-        safety: 0.94
+            "https://912acsss8af382.yasirtv.com"
 
     };
 
 
-    /* ==============================
+    /* =========================================
        العناصر
-       ============================== */
-
-    const stage =
-        document.getElementById("stage");
-
-    const box =
-        document.getElementById("playerBox");
+       ========================================= */
 
     const player =
         document.getElementById("player");
 
 
-    /* ==============================
-       قراءة stream من الرابط
-       ============================== */
+    /* =========================================
+       قراءة stream
+       ========================================= */
 
     const params =
         new URLSearchParams(
             window.location.search
         );
 
+
     const streamKey =
         params.get("stream");
 
 
-    /* ==============================
-       التحقق من اسم البث
-       ============================== */
+    /* =========================================
+       التحقق
+       ========================================= */
 
     function validKey(key) {
 
@@ -167,24 +177,28 @@ body {
     }
 
 
-    /* ==============================
-       تحميل streams.json
-       ============================== */
+    /* =========================================
+       تحميل البث
+       ========================================= */
 
     async function loadStream() {
 
         try {
 
             if (!validKey(streamKey)) {
+
                 throw new Error(
                     "Invalid stream"
                 );
+
             }
 
 
             const response =
                 await fetch(
-                    CONFIG.streamsFile,
+                    CONFIG.streamsFile +
+                    "?v=" +
+                    Date.now(),
                     {
                         cache: "no-store"
                     }
@@ -192,9 +206,11 @@ body {
 
 
             if (!response.ok) {
+
                 throw new Error(
-                    "streams.json unavailable"
+                    "Unable to load streams"
                 );
+
             }
 
 
@@ -207,9 +223,11 @@ body {
                 !data.streams ||
                 !data.streams[streamKey]
             ) {
+
                 throw new Error(
                     "Stream not found"
                 );
+
             }
 
 
@@ -223,17 +241,19 @@ body {
                     stream.match
                 )
             ) {
+
                 throw new Error(
-                    "Invalid match ID"
+                    "Invalid match"
                 );
+
             }
 
 
             /*
-             * إنشاء رابط YasirTV
+             * رابط YasirTV
              */
 
-            player.src =
+            const url =
                 CONFIG.playerHost +
                 "/playerv5.php?match=" +
                 encodeURIComponent(
@@ -241,187 +261,45 @@ body {
                 );
 
 
+            player.src = url;
+
+
         } catch (error) {
 
             console.error(error);
 
             /*
-             * لا نعرض تفاصيل الخطأ
+             * لا نعرض صفحة خطأ
+             * حتى لا تؤثر على WebView
              */
 
-            document.body.innerHTML = "";
+            player.removeAttribute("src");
 
         }
 
     }
 
 
-    /* ==============================
-       الحصول على حجم الشاشة الحقيقي
-       ============================== */
+    /* =========================================
+       تثبيت حجم الـiframe
+       ========================================= */
 
-    function getViewport() {
+    function updateSize() {
 
-        let width =
-            document.documentElement.clientWidth;
+        const width =
+            window.innerWidth;
 
-        let height =
-            document.documentElement.clientHeight;
-
-
-        /*
-         * visualViewport
-         */
-
-        if (window.visualViewport) {
-
-            if (
-                window.visualViewport.width > 0
-            ) {
-
-                width =
-                    Math.min(
-                        width,
-                        window.visualViewport.width
-                    );
-
-            }
-
-            if (
-                window.visualViewport.height > 0
-            ) {
-
-                height =
-                    Math.min(
-                        height,
-                        window.visualViewport.height
-                    );
-
-            }
-
-        }
-
-
-        return {
-
-            width:
-                Math.max(1, width),
-
-            height:
-                Math.max(1, height)
-
-        };
-
-    }
-
-
-    /* ==============================
-       ضبط حجم المشغل
-       ============================== */
-
-    function resizePlayer() {
-
-        const viewport =
-            getViewport();
-
-
-        const stageWidth =
-            stage.clientWidth ||
-            viewport.width;
-
-        const stageHeight =
-            stage.clientHeight ||
-            viewport.height;
+        const height =
+            window.innerHeight;
 
 
         /*
-         * مساحة آمنة
+         * استخدام dvh/dvw عند توفرها
          */
 
-        const availableWidth =
-            stageWidth *
-            CONFIG.safety;
+        player.style.left = "0px";
 
-        const availableHeight =
-            stageHeight *
-            CONFIG.safety;
-
-
-        /*
-         * حساب 16:9
-         */
-
-        let width =
-            availableWidth;
-
-        let height =
-            width /
-            CONFIG.aspectRatio;
-
-
-        /*
-         * إذا كان الارتفاع أكبر
-         * من المساحة المتاحة
-         */
-
-        if (
-            height >
-            availableHeight
-        ) {
-
-            height =
-                availableHeight;
-
-            width =
-                height *
-                CONFIG.aspectRatio;
-
-        }
-
-
-        /*
-         * حماية إضافية
-         */
-
-        width =
-            Math.min(
-                width,
-                availableWidth
-            );
-
-        height =
-            Math.min(
-                height,
-                availableHeight
-            );
-
-
-        /*
-         * تقريب للأسفل
-         */
-
-        width =
-            Math.max(
-                1,
-                Math.floor(width)
-            );
-
-        height =
-            Math.max(
-                1,
-                Math.floor(height)
-            );
-
-
-        /*
-         * تطبيق الحجم
-         */
-
-        box.style.width =
-            width + "px";
-
-        box.style.height =
-            height + "px";
+        player.style.top = "0px";
 
         player.style.width =
             width + "px";
@@ -432,58 +310,53 @@ body {
     }
 
 
-    /* ==============================
-       مراقبة حجم الصفحة
-       ============================== */
+    /* =========================================
+       البداية
+       ========================================= */
 
-    if (window.ResizeObserver) {
+    updateSize();
 
-        const observer =
-            new ResizeObserver(
-                function () {
-                    resizePlayer();
-                }
-            );
-
-        observer.observe(stage);
-
-    }
+    loadStream();
 
 
-    /* ==============================
-       تغيير حجم النافذة
-       ============================== */
+    /* =========================================
+       Resize
+       ========================================= */
 
     window.addEventListener(
         "resize",
-        resizePlayer,
+        function () {
+
+            updateSize();
+
+        },
         {
             passive: true
         }
     );
 
 
-    /* ==============================
-       تغيير الاتجاه
-       ============================== */
+    /* =========================================
+       Orientation
+       ========================================= */
 
     window.addEventListener(
         "orientationchange",
         function () {
 
             setTimeout(
-                resizePlayer,
-                100
+                updateSize,
+                50
             );
 
             setTimeout(
-                resizePlayer,
-                400
+                updateSize,
+                250
             );
 
             setTimeout(
-                resizePlayer,
-                800
+                updateSize,
+                600
             );
 
         },
@@ -493,15 +366,15 @@ body {
     );
 
 
-    /* ==============================
+    /* =========================================
        visualViewport
-       ============================== */
+       ========================================= */
 
     if (window.visualViewport) {
 
         window.visualViewport.addEventListener(
             "resize",
-            resizePlayer,
+            updateSize,
             {
                 passive: true
             }
@@ -510,81 +383,23 @@ body {
     }
 
 
-    /* ==============================
-       بعد تحميل iframe
-       ============================== */
+    /* =========================================
+       منع Popups من صفحتنا
+       ========================================= */
 
-    player.addEventListener(
-        "load",
+    const originalOpen =
+        window.open;
+
+    window.open =
         function () {
 
-            setTimeout(
-                resizePlayer,
-                100
-            );
+            return null;
 
-            setTimeout(
-                resizePlayer,
-                500
-            );
-
-        }
-    );
-
-
-    /* ==============================
-       منع Pop-up من الصفحة الوسيطة
-       ============================== */
-
-    window.open = function () {
-        return null;
-    };
-
-
-    /* ==============================
-       منع فتح تبويبات جديدة
-       ============================== */
-
-    document.addEventListener(
-        "click",
-        function (event) {
-
-            const link =
-                event.target.closest &&
-                event.target.closest("a");
-
-
-            if (!link) {
-                return;
-            }
-
-
-            if (
-                link.target === "_blank" ||
-                link.target === "_new"
-            ) {
-
-                event.preventDefault();
-
-                event.stopImmediatePropagation();
-
-            }
-
-        },
-        true
-    );
-
-
-    /* ==============================
-       البداية
-       ============================== */
-
-    resizePlayer();
-
-    loadStream();
+        };
 
 
 })();
+
 </script>
 
 </body>
