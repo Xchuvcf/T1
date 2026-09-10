@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+}
+
+.player {
+    width: 100vw;
+    aspect-ratio: 16 / 9;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+</style>
+</head>
+
+<body>
+
+<div class="player">
+    <iframe
+        src="https://912acsss8af382.yasirtv.com/playerv5.php?match=4828487"
+        allowfullscreen
+        scrolling="no">
+    </iframe>
+</div>
+
+<script>
+async function landscape() {
+    try {
+        if (screen.orientation && screen.orientation.lock) {
+            await screen.orientation.lock("landscape");
+        }
+    } catch (e) {
+        // المتصفح قد يمنع إجبار الاتجاه
+    }
+}
+
+landscape();
+</script>
+
+</body>
+</html>
