@@ -5,10 +5,10 @@
 
 <meta name="viewport"
       content="width=device-width,
-               initial-scale=1.0,
-               maximum-scale=1.0,
-               user-scalable=no,
-               viewport-fit=cover">
+      initial-scale=1.0,
+      maximum-scale=1.0,
+      user-scalable=no,
+      viewport-fit=cover">
 
 <title>Video Player</title>
 
@@ -20,7 +20,6 @@
 
 html,
 body {
-
     width: 100%;
     height: 100%;
 
@@ -34,13 +33,8 @@ body {
     overscroll-behavior: none;
 }
 
-
-/* =========================
-   المشغل
-   ========================= */
-
+/* المساحة الآمنة */
 #stage {
-
     position: fixed;
 
     top: env(safe-area-inset-top, 0px);
@@ -58,30 +52,33 @@ body {
     background: #000;
 }
 
-
+/* حاوية المشغل */
 #playerBox {
 
     position: relative;
 
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
+    width: 1px;
+    height: 1px;
 
     overflow: hidden;
 
     background: #000;
 
     flex: 0 0 auto;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
 }
 
-
+/* iframe */
 #player {
 
     display: block;
 
-    width: 1px;
-    height: 1px;
+    width: 100%;
+    height: 100%;
 
     border: 0;
 
@@ -98,7 +95,6 @@ body {
 
 <body>
 
-
 <div id="stage">
 
     <div id="playerBox">
@@ -108,12 +104,7 @@ body {
 
             title="Video Player"
 
-            allow="
-                autoplay;
-                encrypted-media;
-                fullscreen;
-                picture-in-picture
-            "
+            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
 
             allowfullscreen
             webkitallowfullscreen="true"
@@ -141,21 +132,12 @@ body {
 
 const CONFIG = {
 
-    /*
-     * ملف البثوث
-     */
     streamsFile: "streams.json",
 
-    /*
-     * الدومين الخاص بالمشغل
-     */
     playerHost:
         "https://912acsss8af382.yasirtv.com",
 
-    /*
-     * نسبة المشغل
-     */
-    aspectRatio: 16 / 9,
+    ratio: 16 / 9,
 
     /*
      * هامش أمان
@@ -180,16 +162,8 @@ const player =
 
 
 /* =====================================================
-   الحصول على اسم البث من الرابط
+   قراءة stream
    ===================================================== */
-
-/*
-   مثال:
-
-   ?stream=match1
-
-   ?stream=match2
-*/
 
 const params =
     new URLSearchParams(
@@ -201,7 +175,7 @@ const streamKey =
 
 
 /* =====================================================
-   التحقق من اسم البث
+   التحقق
    ===================================================== */
 
 function validKey(key) {
@@ -215,7 +189,7 @@ function validKey(key) {
 
 
 /* =====================================================
-   تحميل الإعدادات
+   تحميل streams.json
    ===================================================== */
 
 async function loadStream() {
@@ -243,7 +217,7 @@ async function loadStream() {
         if (!response.ok) {
 
             throw new Error(
-                "Unable to load streams.json"
+                "streams.json unavailable"
             );
 
         }
@@ -270,10 +244,6 @@ async function loadStream() {
             data.streams[streamKey];
 
 
-        /*
-         * التحقق من Match ID
-         */
-
         if (
             typeof stream.match !== "string" ||
             !/^[A-Za-z0-9_-]+$/.test(
@@ -282,17 +252,17 @@ async function loadStream() {
         ) {
 
             throw new Error(
-                "Invalid match ID"
+                "Invalid match"
             );
 
         }
 
 
         /*
-         * إنشاء رابط المشغل
+         * إنشاء الرابط
          */
 
-        const url =
+        player.src =
             CONFIG.playerHost +
             "/playerv5.php?match=" +
             encodeURIComponent(
@@ -300,20 +270,9 @@ async function loadStream() {
             );
 
 
-        /*
-         * تشغيل المشغل
-         */
-
-        player.src = url;
-
-
     } catch (error) {
 
         console.error(error);
-
-        /*
-         * لا نعرض تفاصيل داخلية للمستخدم
-         */
 
         document.body.innerHTML = "";
 
@@ -323,10 +282,10 @@ async function loadStream() {
 
 
 /* =====================================================
-   حساب حجم المشغل
+   حجم الشاشة الحقيقي
    ===================================================== */
 
-function getViewportSize() {
+function getViewport() {
 
     let width =
         document.documentElement.clientWidth;
@@ -383,13 +342,13 @@ function getViewportSize() {
 
 
 /* =====================================================
-   Resize احترافي
+   ضبط الحجم
    ===================================================== */
 
 function resizePlayer() {
 
     const viewport =
-        getViewportSize();
+        getViewport();
 
 
     const stageWidth =
@@ -402,7 +361,7 @@ function resizePlayer() {
 
 
     /*
-     * هامش أمان
+     * Safe margin
      */
 
     const availableWidth =
@@ -415,7 +374,7 @@ function resizePlayer() {
 
 
     /*
-     * حساب 16:9
+     * 16:9
      */
 
     let width =
@@ -423,7 +382,7 @@ function resizePlayer() {
 
     let height =
         width /
-        CONFIG.aspectRatio;
+        CONFIG.ratio;
 
 
     /*
@@ -440,7 +399,7 @@ function resizePlayer() {
 
         width =
             height *
-            CONFIG.aspectRatio;
+            CONFIG.ratio;
 
     }
 
@@ -463,20 +422,25 @@ function resizePlayer() {
 
 
     /*
-     * التقريب للأسفل
+     * تقريب للأسفل
      */
 
     width =
-        Math.max(
-            1,
-            Math.floor(width)
-        );
+        Math.floor(width);
 
     height =
-        Math.max(
-            1,
-            Math.floor(height)
-        );
+        Math.floor(height);
+
+
+    /*
+     * منع الحجم السالب
+     */
+
+    width =
+        Math.max(1, width);
+
+    height =
+        Math.max(1, height);
 
 
     /*
@@ -500,111 +464,6 @@ function resizePlayer() {
 
 
 /* =====================================================
-   Fullscreen
-   ===================================================== */
-
-async function enterFullscreen() {
-
-    try {
-
-        if (
-            document.fullscreenElement ||
-            document.webkitFullscreenElement
-        ) {
-
-            return;
-
-        }
-
-
-        if (
-            document.documentElement
-                .requestFullscreen
-        ) {
-
-            await document.documentElement
-                .requestFullscreen({
-                    navigationUI: "hide"
-                });
-
-            return;
-
-        }
-
-
-        if (
-            document.documentElement
-                .webkitRequestFullscreen
-        ) {
-
-            document.documentElement
-                .webkitRequestFullscreen();
-
-        }
-
-    } catch (error) {
-
-        console.log(
-            "Fullscreen unavailable"
-        );
-
-    }
-
-}
-
-
-/* =====================================================
-   محاولة Fullscreen
-   ===================================================== */
-
-setTimeout(
-    enterFullscreen,
-    500
-);
-
-
-/* =====================================================
-   Fullscreen عند أول لمس
-   ===================================================== */
-
-function firstInteraction() {
-
-    enterFullscreen();
-
-    document.removeEventListener(
-        "touchstart",
-        firstInteraction
-    );
-
-    document.removeEventListener(
-        "click",
-        firstInteraction
-    );
-
-}
-
-
-document.addEventListener(
-    "touchstart",
-    firstInteraction,
-    {
-        passive: true,
-        once: true
-    }
-);
-
-
-document.addEventListener(
-    "click",
-    firstInteraction,
-    {
-        passive: true,
-        once: true
-    }
-);
-
-
-/* =====================================================
    ResizeObserver
    ===================================================== */
 
@@ -612,7 +471,11 @@ if (window.ResizeObserver) {
 
     const observer =
         new ResizeObserver(
-            resizePlayer
+            function () {
+
+                resizePlayer();
+
+            }
         );
 
     observer.observe(stage);
@@ -621,7 +484,7 @@ if (window.ResizeObserver) {
 
 
 /* =====================================================
-   Window Resize
+   Resize
    ===================================================== */
 
 window.addEventListener(
@@ -664,7 +527,7 @@ window.addEventListener(
 
 
 /* =====================================================
-   Visual Viewport
+   visualViewport
    ===================================================== */
 
 if (window.visualViewport) {
@@ -681,29 +544,7 @@ if (window.visualViewport) {
 
 
 /* =====================================================
-   Fullscreen Change
-   ===================================================== */
-
-document.addEventListener(
-    "fullscreenchange",
-    function () {
-
-        setTimeout(
-            resizePlayer,
-            100
-        );
-
-        setTimeout(
-            resizePlayer,
-            500
-        );
-
-    }
-);
-
-
-/* =====================================================
-   تحميل المشغل
+   تحميل iframe
    ===================================================== */
 
 player.addEventListener(
@@ -721,53 +562,6 @@ player.addEventListener(
         );
 
     }
-);
-
-
-/* =====================================================
-   منع Popups في الصفحة الوسيطة
-   ===================================================== */
-
-window.open = function () {
-
-    return null;
-
-};
-
-
-/* =====================================================
-   منع فتح تبويبات جديدة
-   ===================================================== */
-
-document.addEventListener(
-    "click",
-    function (event) {
-
-        const link =
-            event.target.closest &&
-            event.target.closest("a");
-
-
-        if (!link) {
-
-            return;
-
-        }
-
-
-        if (
-            link.target === "_blank" ||
-            link.target === "_new"
-        ) {
-
-            event.preventDefault();
-
-            event.stopImmediatePropagation();
-
-        }
-
-    },
-    true
 );
 
 
