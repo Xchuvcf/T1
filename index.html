@@ -1,1 +1,153 @@
-<iframe src="https://912acsss8af382.yasirtv.com/playerv5.php?match=4828487" width="640" height="360" frameborder="0" allowfullscreen scrolling="no"></iframe>
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+
+<meta name="viewport"
+      content="width=device-width,
+               initial-scale=1.0,
+               maximum-scale=1.0,
+               user-scalable=no,
+               viewport-fit=cover">
+
+<title>Player</title>
+
+<style>
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+
+    background: #000;
+
+    overflow: hidden;
+}
+
+#root {
+    position: fixed;
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    overflow: hidden;
+
+    background: #000;
+}
+
+#player {
+    position: absolute;
+
+    left: 0;
+    top: 0;
+
+    width: 100%;
+    height: 100%;
+
+    border: 0;
+    margin: 0;
+    padding: 0;
+
+    display: block;
+
+    background: #000;
+}
+</style>
+</head>
+
+<body>
+
+<div id="root">
+
+    <iframe
+        id="player"
+        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+        allowfullscreen
+        webkitallowfullscreen="true"
+        scrolling="no"
+        referrerpolicy="no-referrer">
+    </iframe>
+
+</div>
+
+<script>
+(function () {
+
+    const params = new URLSearchParams(window.location.search);
+
+    const match = params.get("match") || "4828487";
+
+    if (!/^[A-Za-z0-9_-]+$/.test(match)) {
+        document.body.innerHTML = "";
+        return;
+    }
+
+    const player = document.getElementById("player");
+
+    player.src =
+        "https://912acsss8af382.yasirtv.com/playerv5.php?match=" +
+        encodeURIComponent(match);
+
+
+    /*
+     * لا نستخدم scale
+     * لا نغير الاتجاه
+     * لا نفرض 16:9
+     *
+     * الـiframe يأخذ فقط المساحة
+     * التي أعطاها له التطبيق.
+     */
+
+    function updateSize() {
+
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+
+        player.style.width = w + "px";
+        player.style.height = h + "px";
+    }
+
+    updateSize();
+
+    window.addEventListener("resize", updateSize);
+
+    window.addEventListener("orientationchange", function () {
+        setTimeout(updateSize, 300);
+    });
+
+
+    /*
+     * منع Popups في الصفحة الوسيطة
+     */
+
+    window.open = function () {
+        return null;
+    };
+
+
+    /*
+     * منع الروابط التي تحاول فتح نافذة جديدة
+     */
+
+    document.addEventListener("click", function (e) {
+
+        const a = e.target.closest("a");
+
+        if (!a) return;
+
+        if (a.target === "_blank") {
+
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+        }
+
+    }, true);
+
+})();
+</script>
+
+</body>
+</html>
