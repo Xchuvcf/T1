@@ -13,32 +13,29 @@
 <title>Player</title>
 
 <style>
+* {
+    box-sizing: border-box;
+}
+
 html,
 body {
     width: 100%;
     height: 100%;
+
     margin: 0;
     padding: 0;
 
     background: #000;
+
     overflow: hidden;
 
-    /* منع أي تمدد إضافي */
-    box-sizing: border-box;
+    overscroll-behavior: none;
 }
 
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
-}
-
+/* المساحة الكاملة */
 #stage {
     position: fixed;
 
-    /*
-     * Safe Area
-     */
     top: env(safe-area-inset-top, 0px);
     right: env(safe-area-inset-right, 0px);
     bottom: env(safe-area-inset-bottom, 0px);
@@ -57,25 +54,37 @@ body {
     background: #000;
 }
 
+/* حاوية المشغل */
+#playerBox {
+    position: relative;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    overflow: hidden;
+
+    background: #000;
+
+    flex: 0 0 auto;
+}
+
+/* المشغل */
 #player {
     display: block;
 
-    /*
-     * JavaScript يحدد الحجم الحقيقي
-     */
     width: 1px;
     height: 1px;
 
-    max-width: 100%;
-    max-height: 100%;
-
-    flex: 0 0 auto;
-
     border: 0;
+
     margin: 0;
     padding: 0;
 
     background: #000;
+
+    flex: 0 0 auto;
 }
 </style>
 </head>
@@ -84,15 +93,28 @@ body {
 
 <div id="stage">
 
-    <iframe
-        id="player"
-        title="Video Player"
-        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-        allowfullscreen
-        webkitallowfullscreen="true"
-        scrolling="no"
-        referrerpolicy="no-referrer">
-    </iframe>
+    <div id="playerBox">
+
+        <iframe
+            id="player"
+            title="Video Player"
+
+            allow="
+                autoplay;
+                encrypted-media;
+                fullscreen;
+                picture-in-picture
+            "
+
+            allowfullscreen
+            webkitallowfullscreen="true"
+
+            scrolling="no"
+
+            referrerpolicy="no-referrer">
+        </iframe>
+
+    </div>
 
 </div>
 
@@ -101,35 +123,58 @@ body {
 
     "use strict";
 
+
+    /* =====================================================
+       قراءة رقم المباراة
+       ===================================================== */
+
     const params =
         new URLSearchParams(window.location.search);
 
     const match =
         params.get("match") || "4828487";
 
+
+    /*
+     * حماية قيمة match
+     */
+
     if (!/^[A-Za-z0-9_-]+$/.test(match)) {
+
         document.body.innerHTML = "";
+
         return;
     }
 
-    const player =
-        document.getElementById("player");
+
+    /* =====================================================
+       العناصر
+       ===================================================== */
 
     const stage =
         document.getElementById("stage");
 
-    /*
-     * رابط YasirTV
-     */
+    const box =
+        document.getElementById("playerBox");
+
+    const player =
+        document.getElementById("player");
+
+
+    /* =====================================================
+       رابط المشغل
+       ===================================================== */
+
     player.src =
         "https://912acsss8af382.yasirtv.com/playerv5.php?match=" +
         encodeURIComponent(match);
 
 
-    /*
-     * الحصول على الحجم الحقيقي المتاح
-     */
-    function getViewportSize() {
+    /* =====================================================
+       الحصول على حجم الشاشة الحقيقي
+       ===================================================== */
+
+    function getViewport() {
 
         let width =
             document.documentElement.clientWidth;
@@ -137,27 +182,29 @@ body {
         let height =
             document.documentElement.clientHeight;
 
+
         /*
-         * visualViewport أدق داخل WebView
+         * visualViewport أدق في Android
          */
+
         if (window.visualViewport) {
 
-            if (window.visualViewport.width > 0) {
-                width =
-                    Math.min(
-                        width,
-                        window.visualViewport.width
-                    );
+            const vw =
+                window.visualViewport.width;
+
+            const vh =
+                window.visualViewport.height;
+
+
+            if (vw > 0) {
+                width = Math.min(width, vw);
             }
 
-            if (window.visualViewport.height > 0) {
-                height =
-                    Math.min(
-                        height,
-                        window.visualViewport.height
-                    );
+            if (vh > 0) {
+                height = Math.min(height, vh);
             }
         }
+
 
         return {
             width: Math.max(1, width),
@@ -166,53 +213,57 @@ body {
     }
 
 
-    /*
-     * ضبط حجم المشغل
-     */
+    /* =====================================================
+       ضبط حجم المشغل
+       ===================================================== */
+
     function resizePlayer() {
 
         const viewport =
-            getViewportSize();
+            getViewport();
+
 
         /*
-         * نستخدم مساحة stage الفعلية
+         * مساحة الـstage الفعلية
          */
+
         const stageWidth =
             Math.min(
                 viewport.width,
-                stage.clientWidth
+                stage.clientWidth || viewport.width
             );
 
         const stageHeight =
             Math.min(
                 viewport.height,
-                stage.clientHeight
+                stage.clientHeight || viewport.height
             );
 
+
         /*
-         * هامش أمان
+         * هامش أمان صغير
          *
-         * يمنع خروج أي جزء من المشغل
-         * بسبب فروقات WebView / Status Bar / Navigation Bar
+         * يمنع خروج أي جزء خارج الشاشة.
          */
-        const safety = 0.94;
+
+        const margin = 0.96;
+
 
         const availableWidth =
-            Math.max(
-                1,
-                stageWidth * safety
-            );
+            stageWidth * margin;
 
         const availableHeight =
-            Math.max(
-                1,
-                stageHeight * safety
-            );
+            stageHeight * margin;
+
 
         /*
-         * النسبة الأصلية 16:9
+         * النسبة الأصلية للمشغل
+         *
+         * 640 × 360
          */
+
         const ratio = 16 / 9;
+
 
         let width =
             availableWidth;
@@ -220,9 +271,12 @@ body {
         let height =
             width / ratio;
 
+
         /*
          * إذا كان الارتفاع أكبر من المساحة
+         * المتاحة، نضبط الحجم بناءً على الارتفاع.
          */
+
         if (height > availableHeight) {
 
             height =
@@ -232,9 +286,11 @@ body {
                 height * ratio;
         }
 
+
         /*
          * حماية إضافية
          */
+
         width =
             Math.min(
                 width,
@@ -247,9 +303,11 @@ body {
                 availableHeight
             );
 
+
         /*
-         * تقريب للأسفل لمنع كسر البكسل
+         * التقريب للأسفل
          */
+
         width =
             Math.max(
                 1,
@@ -262,6 +320,18 @@ body {
                 Math.floor(height)
             );
 
+
+        /*
+         * تطبيق الحجم
+         */
+
+        box.style.width =
+            width + "px";
+
+        box.style.height =
+            height + "px";
+
+
         player.style.width =
             width + "px";
 
@@ -270,99 +340,297 @@ body {
     }
 
 
-    /*
-     * أول حساب بعد تحميل الصفحة
-     */
+    /* =====================================================
+       Fullscreen
+       ===================================================== */
+
+    async function enterFullscreen() {
+
+        try {
+
+            /*
+             * إذا كان بالفعل Fullscreen
+             */
+
+            if (
+                document.fullscreenElement ||
+                document.webkitFullscreenElement
+            ) {
+                return;
+            }
+
+
+            /*
+             * Fullscreen API
+             */
+
+            if (
+                document.documentElement.requestFullscreen
+            ) {
+
+                await document.documentElement
+                    .requestFullscreen({
+                        navigationUI: "hide"
+                    });
+
+                return;
+            }
+
+
+            /*
+             * دعم WebKit
+             */
+
+            if (
+                document.documentElement
+                    .webkitRequestFullscreen
+            ) {
+
+                document.documentElement
+                    .webkitRequestFullscreen();
+
+                return;
+            }
+
+        } catch (error) {
+
+            /*
+             * Android/Chrome قد يمنع
+             * التشغيل التلقائي.
+             */
+
+            console.log(
+                "Fullscreen request blocked"
+            );
+        }
+    }
+
+
+    /* =====================================================
+       محاولة Fullscreen تلقائيًا
+       ===================================================== */
+
+    function tryAutoFullscreen() {
+
+        /*
+         * بعض المتصفحات لا تسمح بـFullscreen
+         * إلا بعد تفاعل المستخدم.
+         */
+
+        enterFullscreen();
+
+    }
+
+
+    /* =====================================================
+       Fullscreen عند أول تفاعل
+       ===================================================== */
+
+    function fullscreenOnInteraction() {
+
+        enterFullscreen();
+
+        document.removeEventListener(
+            "touchstart",
+            fullscreenOnInteraction
+        );
+
+        document.removeEventListener(
+            "click",
+            fullscreenOnInteraction
+        );
+
+    }
+
+
+    document.addEventListener(
+        "touchstart",
+        fullscreenOnInteraction,
+        {
+            passive: true,
+            once: true
+        }
+    );
+
+
+    document.addEventListener(
+        "click",
+        fullscreenOnInteraction,
+        {
+            passive: true,
+            once: true
+        }
+    );
+
+
+    /* =====================================================
+       بدء الصفحة
+       ===================================================== */
+
     resizePlayer();
 
 
     /*
-     * مراقبة حجم WebView الحقيقي
+     * محاولة الدخول Fullscreen
      */
+
+    setTimeout(
+        tryAutoFullscreen,
+        500
+    );
+
+
+    setTimeout(
+        resizePlayer,
+        100
+    );
+
+    setTimeout(
+        resizePlayer,
+        500
+    );
+
+    setTimeout(
+        resizePlayer,
+        1000
+    );
+
+
+    /* =====================================================
+       مراقبة تغيير الحجم
+       ===================================================== */
+
     if (window.ResizeObserver) {
 
         const observer =
             new ResizeObserver(function () {
+
                 resizePlayer();
+
             });
 
         observer.observe(stage);
     }
 
 
-    /*
-     * تغيير حجم النافذة
-     */
+    /* =====================================================
+       resize
+       ===================================================== */
+
     window.addEventListener(
         "resize",
         resizePlayer,
-        { passive: true }
+        {
+            passive: true
+        }
     );
 
 
-    /*
-     * تغيير الاتجاه
-     */
+    /* =====================================================
+       تغيير الاتجاه
+       ===================================================== */
+
     window.addEventListener(
         "orientationchange",
         function () {
 
-            /*
-             * بعض أجهزة Android تحتاج أكثر من محاولة
-             */
-            setTimeout(resizePlayer, 100);
-            setTimeout(resizePlayer, 400);
-            setTimeout(resizePlayer, 800);
+            setTimeout(
+                resizePlayer,
+                100
+            );
+
+            setTimeout(
+                resizePlayer,
+                400
+            );
+
+            setTimeout(
+                resizePlayer,
+                800
+            );
 
         },
-        { passive: true }
+        {
+            passive: true
+        }
     );
 
 
-    /*
-     * visualViewport
-     */
+    /* =====================================================
+       visualViewport
+       ===================================================== */
+
     if (window.visualViewport) {
 
         window.visualViewport.addEventListener(
             "resize",
             resizePlayer,
-            { passive: true }
-        );
-
-        window.visualViewport.addEventListener(
-            "scroll",
-            resizePlayer,
-            { passive: true }
+            {
+                passive: true
+            }
         );
     }
 
 
-    /*
-     * إعادة الحساب بعد تحميل iframe
-     */
-    player.addEventListener(
-        "load",
+    /* =====================================================
+       Fullscreen تغير
+       ===================================================== */
+
+    document.addEventListener(
+        "fullscreenchange",
         function () {
 
-            setTimeout(resizePlayer, 100);
-            setTimeout(resizePlayer, 500);
+            setTimeout(
+                resizePlayer,
+                100
+            );
+
+            setTimeout(
+                resizePlayer,
+                500
+            );
 
         }
     );
 
 
-    /*
-     * منع Popups من صفحة الوسيط
-     */
+    /* =====================================================
+       تحميل iframe
+       ===================================================== */
+
+    player.addEventListener(
+        "load",
+        function () {
+
+            setTimeout(
+                resizePlayer,
+                100
+            );
+
+            setTimeout(
+                resizePlayer,
+                500
+            );
+
+        }
+    );
+
+
+    /* =====================================================
+       منع Popups في الصفحة الوسيطة
+       ===================================================== */
+
     window.open = function () {
+
         return null;
+
     };
 
 
-    /*
-     * منع فتح تبويبات جديدة
-     */
+    /* =====================================================
+       منع فتح تبويبات جديدة
+       ===================================================== */
+
     document.addEventListener(
         "click",
         function (event) {
@@ -371,17 +639,27 @@ body {
                 event.target.closest &&
                 event.target.closest("a");
 
-            if (!link) return;
 
-            if (link.target === "_blank") {
+            if (!link) {
+                return;
+            }
+
+
+            if (
+                link.target === "_blank" ||
+                link.target === "_new"
+            ) {
 
                 event.preventDefault();
+
                 event.stopImmediatePropagation();
+
             }
 
         },
         true
     );
+
 
 })();
 </script>
