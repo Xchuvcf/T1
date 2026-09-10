@@ -7,41 +7,48 @@
       content="width=device-width,
                initial-scale=1.0,
                maximum-scale=1.0,
-               user-scalable=no">
+               user-scalable=no,
+               viewport-fit=cover">
 
-<title>Video Player</title>
+<title>Player</title>
 
 <style>
-* {
-    box-sizing: border-box;
-}
 
 html,
 body {
-    width: 100%;
-    height: 100%;
-
     margin: 0;
     padding: 0;
+
+    width: 100%;
+    height: 100%;
 
     background: #000;
 
     overflow: hidden;
 
-    overscroll-behavior: none;
+    position: fixed;
+    inset: 0;
 }
 
-/* =====================================================
-   الشاشة
-   ===================================================== */
+
+/* =========================================
+   المساحة الكاملة
+   ========================================= */
 
 #stage {
+
     position: fixed;
 
     inset: 0;
 
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
+
+    width: 100dvw;
+    height: 100dvh;
+
+    margin: 0;
+    padding: 0;
 
     background: #000;
 
@@ -54,67 +61,58 @@ body {
 }
 
 
-/* =====================================================
-   إطار 16:9
-   ===================================================== */
+/* =========================================
+   إطار الفيديو الحقيقي
+   ========================================= */
 
-#playerBox {
+#videoBox {
 
     position: relative;
 
-    /*
-     * أكبر مستطيل 16:9
-     * يمكن أن يدخل بالكامل داخل الشاشة.
-     */
+    margin: 0;
+    padding: 0;
 
-    width: min(
-        100vw,
-        calc(100vh * 16 / 9)
-    );
-
-    height: min(
-        100vh,
-        calc(100vw * 9 / 16)
-    );
-
-    flex: 0 0 auto;
+    background: #000;
 
     overflow: hidden;
 
-    background: #000;
+    flex-shrink: 0;
 }
 
 
-/* =====================================================
-   YasirTV iframe
-   ===================================================== */
+/* =========================================
+   iframe
+   ========================================= */
 
 #player {
 
     position: absolute;
 
-    inset: 0;
+    left: 0;
+    top: 0;
 
     width: 100%;
     height: 100%;
 
-    border: 0;
-
     margin: 0;
     padding: 0;
+
+    border: 0;
 
     display: block;
 
     background: #000;
 }
+
 </style>
 </head>
+
 
 <body>
 
 <div id="stage">
 
-    <div id="playerBox">
+    <div id="videoBox">
 
         <iframe
             id="player"
@@ -137,33 +135,35 @@ body {
 
 
 <script>
+
 (function () {
 
     "use strict";
 
 
-    /* =================================================
+    /* =========================================
        الإعدادات
-       ================================================= */
+       ========================================= */
 
-    const STREAMS_FILE =
-        "streams.json";
+    const STREAMS_FILE = "streams.json";
 
     const PLAYER_HOST =
         "https://912acsss8af382.yasirtv.com";
 
 
-    /* =================================================
-       العناصر
-       ================================================= */
+    const stage =
+        document.getElementById("stage");
+
+    const videoBox =
+        document.getElementById("videoBox");
 
     const player =
         document.getElementById("player");
 
 
-    /* =================================================
-       قراءة stream
-       ================================================= */
+    /* =========================================
+       Stream ID
+       ========================================= */
 
     const params =
         new URLSearchParams(
@@ -174,9 +174,9 @@ body {
         params.get("stream");
 
 
-    /* =================================================
-       التحقق من المفتاح
-       ================================================= */
+    /* =========================================
+       التحقق
+       ========================================= */
 
     function validKey(value) {
 
@@ -188,18 +188,143 @@ body {
     }
 
 
-    /* =================================================
-       تحميل بيانات البث
-       ================================================= */
+    /* =========================================
+       حساب الفيديو بدقة
+       ========================================= */
+
+    function resizePlayer() {
+
+        /*
+         * نأخذ الحجم الحقيقي للـWebView
+         */
+
+        const width =
+            window.innerWidth;
+
+        const height =
+            window.innerHeight;
+
+
+        if (
+            width <= 0 ||
+            height <= 0
+        ) {
+            return;
+        }
+
+
+        /*
+         * 16:9
+         */
+
+        const ratio = 16 / 9;
+
+
+        let videoWidth;
+        let videoHeight;
+
+
+        /*
+         * Landscape
+         */
+
+        if (width >= height) {
+
+            /*
+             * نعتمد الارتفاع الحقيقي
+             */
+
+            videoHeight = height;
+
+            videoWidth =
+                videoHeight * ratio;
+
+
+            /*
+             * حماية من تجاوز العرض
+             */
+
+            if (videoWidth > width) {
+
+                videoWidth = width;
+
+                videoHeight =
+                    videoWidth / ratio;
+
+            }
+
+        }
+
+        /*
+         * Portrait
+         */
+
+        else {
+
+            /*
+             * نعتمد العرض
+             */
+
+            videoWidth = width;
+
+            videoHeight =
+                videoWidth / ratio;
+
+
+            /*
+             * حماية من تجاوز الارتفاع
+             */
+
+            if (videoHeight > height) {
+
+                videoHeight = height;
+
+                videoWidth =
+                    videoHeight * ratio;
+
+            }
+
+        }
+
+
+        /*
+         * تقريب بدون كسور
+         */
+
+        videoWidth =
+            Math.floor(videoWidth);
+
+        videoHeight =
+            Math.floor(videoHeight);
+
+
+        /*
+         * تطبيق الحجم
+         */
+
+        videoBox.style.width =
+            videoWidth + "px";
+
+        videoBox.style.height =
+            videoHeight + "px";
+
+    }
+
+
+    /* =========================================
+       تحميل البث
+       ========================================= */
 
     async function loadStream() {
 
         try {
 
             if (!validKey(streamKey)) {
+
                 throw new Error(
-                    "Invalid stream key"
+                    "Invalid stream"
                 );
+
             }
 
 
@@ -215,9 +340,11 @@ body {
 
 
             if (!response.ok) {
+
                 throw new Error(
-                    "Unable to load streams.json"
+                    "streams.json error"
                 );
+
             }
 
 
@@ -225,19 +352,17 @@ body {
                 await response.json();
 
 
-            if (
-                !data ||
-                !data.streams ||
-                !data.streams[streamKey]
-            ) {
+            const stream =
+                data?.streams?.[streamKey];
+
+
+            if (!stream) {
+
                 throw new Error(
                     "Stream not found"
                 );
+
             }
-
-
-            const stream =
-                data.streams[streamKey];
 
 
             if (
@@ -246,15 +371,17 @@ body {
                     stream.match
                 )
             ) {
+
                 throw new Error(
                     "Invalid match ID"
                 );
+
             }
 
 
-            /* =========================================
-               إنشاء رابط YasirTV
-               ========================================= */
+            /*
+             * رابط المشغل الأصلي
+             */
 
             player.src =
                 PLAYER_HOST +
@@ -274,135 +401,64 @@ body {
             player.removeAttribute(
                 "src"
             );
-        }
-    }
-
-
-    /* =================================================
-       إعادة حساب 16:9
-       ================================================= */
-
-    function updatePlayer() {
-
-        /*
-         * لا نستخدم:
-         * scale
-         * 92%
-         * 94%
-         * 96%
-         * safe margin
-         *
-         * فقط أكبر 16:9 داخل الشاشة.
-         */
-
-        const width =
-            window.innerWidth;
-
-        const height =
-            window.innerHeight;
-
-
-        const ratio =
-            16 / 9;
-
-
-        let playerWidth =
-            width;
-
-        let playerHeight =
-            playerWidth / ratio;
-
-
-        /*
-         * إذا خرج من أسفل الشاشة
-         * نعتمد الارتفاع.
-         */
-
-        if (
-            playerHeight > height
-        ) {
-
-            playerHeight =
-                height;
-
-            playerWidth =
-                playerHeight * ratio;
 
         }
 
-
-        /*
-         * تحويل إلى أرقام صحيحة
-         */
-
-        playerWidth =
-            Math.floor(playerWidth);
-
-        playerHeight =
-            Math.floor(playerHeight);
-
-
-        /*
-         * تطبيق الحجم
-         */
-
-        const box =
-            document.getElementById(
-                "playerBox"
-            );
-
-
-        box.style.width =
-            playerWidth + "px";
-
-        box.style.height =
-            playerHeight + "px";
     }
 
 
-    /* =================================================
-       بدء الصفحة
-       ================================================= */
+    /* =========================================
+       البداية
+       ========================================= */
 
-    updatePlayer();
+    resizePlayer();
 
     loadStream();
 
 
-    /* =================================================
-       عند تغيير حجم WebView
-       ================================================= */
+    /* =========================================
+       Resize
+       ========================================= */
 
     window.addEventListener(
         "resize",
-        updatePlayer,
+        function () {
+
+            resizePlayer();
+
+        },
         {
             passive: true
         }
     );
 
 
-    /* =================================================
-       تغيير الاتجاه
-       ================================================= */
+    /* =========================================
+       Orientation
+       ========================================= */
 
     window.addEventListener(
         "orientationchange",
         function () {
 
             setTimeout(
-                updatePlayer,
+                resizePlayer,
                 50
             );
 
             setTimeout(
-                updatePlayer,
-                200
+                resizePlayer,
+                150
             );
 
             setTimeout(
-                updatePlayer,
-                500
+                resizePlayer,
+                350
+            );
+
+            setTimeout(
+                resizePlayer,
+                700
             );
 
         },
@@ -412,15 +468,15 @@ body {
     );
 
 
-    /* =================================================
+    /* =========================================
        visualViewport
-       ================================================= */
+       ========================================= */
 
     if (window.visualViewport) {
 
         window.visualViewport.addEventListener(
             "resize",
-            updatePlayer,
+            resizePlayer,
             {
                 passive: true
             }
@@ -429,17 +485,28 @@ body {
     }
 
 
-    /* =================================================
-       منع فتح نوافذ من صفحة الوسيط
-       ================================================= */
+    /* =========================================
+       ResizeObserver
+       ========================================= */
 
-    window.open =
-        function () {
-            return null;
-        };
+    if (window.ResizeObserver) {
+
+        const observer =
+            new ResizeObserver(
+                function () {
+
+                    resizePlayer();
+
+                }
+            );
+
+        observer.observe(stage);
+
+    }
 
 
 })();
+
 </script>
 
 </body>
