@@ -10,16 +10,11 @@
                user-scalable=no,
                viewport-fit=cover">
 
-<title>Video Player</title>
+<title>Player</title>
 
 <style>
-/* ==============================
-   RESET
-   ============================== */
-
 * {
     box-sizing: border-box;
-    -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -33,67 +28,73 @@ body {
     background: #000;
 
     overflow: hidden;
-
-    position: fixed;
-
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
 }
 
-
-/* ==============================
-   منطقة المشغل
-   ============================== */
-
+/*
+ * الشاشة الكاملة
+ */
 #stage {
-
     position: fixed;
 
-    top: 0;
-    left: 0;
-    right: 0;
-
-    /*
-       أهم تعديل:
-       نترك مساحة صغيرة جدًا في الأسفل
-       لمنع خروج أي جزء من المشغل.
-    */
-    bottom: 4px;
-
-    width: 100%;
-
-    overflow: hidden;
-
-    background: #000;
-}
-
-
-/* ==============================
-   iframe
-   ============================== */
-
-#player {
-
-    position: absolute;
-
-    top: 0;
-    left: 0;
+    inset: 0;
 
     width: 100%;
     height: 100%;
 
-    min-width: 0;
-    min-height: 0;
+    background: #000;
 
-    max-width: none;
-    max-height: none;
+    overflow: hidden;
 
-    margin: 0;
-    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+
+/*
+ * صندوق 16:9 حقيقي
+ *
+ * هذا هو الجزء المهم.
+ * لا نجعل YasirTV يأخذ نسبة الشاشة
+ * إذا كانت الشاشة عريضة جدًا.
+ */
+#videoArea {
+    position: relative;
+
+    width: 100vw;
+    height: 100vh;
+
+    max-width: 100%;
+    max-height: 100%;
+
+    aspect-ratio: 16 / 9;
+
+    display: flex;
+
+    align-items: center;
+    justify-content: center;
+
+    background: #000;
+
+    overflow: hidden;
+}
+
+
+/*
+ * iframe الداخلي
+ */
+#player {
+    position: absolute;
+
+    width: 100%;
+    height: 100%;
+
+    left: 0;
+    top: 0;
 
     border: 0;
+    margin: 0;
+    padding: 0;
 
     display: block;
 
@@ -102,94 +103,143 @@ body {
 </style>
 </head>
 
-
 <body>
 
 <div id="stage">
 
-    <iframe
-        id="player"
-        title="Video Player"
+    <div id="videoArea">
 
-        allow="autoplay; encrypted-media; picture-in-picture"
+        <iframe
+            id="player"
+            title="Video Player"
+            allow="autoplay; encrypted-media; picture-in-picture"
+            scrolling="no"
+            referrerpolicy="no-referrer">
+        </iframe>
 
-        scrolling="no"
-
-        referrerpolicy="no-referrer">
-    </iframe>
+    </div>
 
 </div>
 
 
 <script>
-
 (function () {
 
     "use strict";
 
+    const STREAMS_FILE = "streams.json";
 
-    /* =========================================
-       الإعدادات
-       ========================================= */
-
-    const CONFIG = {
-
-        /*
-         * ملف البثوث
-         */
-        streamsFile: "streams.json",
-
-        /*
-         * مشغل YasirTV
-         */
-        playerHost:
-            "https://912acsss8af382.yasirtv.com"
-
-    };
-
-
-    /* =========================================
-       العناصر
-       ========================================= */
+    const PLAYER_HOST =
+        "https://912acsss8af382.yasirtv.com";
 
     const stage =
         document.getElementById("stage");
+
+    const videoArea =
+        document.getElementById("videoArea");
 
     const player =
         document.getElementById("player");
 
 
-    /* =========================================
-       قراءة ?stream=
-       ========================================= */
-
+    /*
+     * قراءة اسم البث
+     *
+     * ?stream=match1
+     */
     const params =
         new URLSearchParams(
-            window.location.search
+            location.search
         );
 
     const streamKey =
         params.get("stream");
 
 
-    /* =========================================
-       التحقق من المفتاح
-       ========================================= */
-
-    function validKey(key) {
+    function validKey(value) {
 
         return (
-            typeof key === "string" &&
-            /^[A-Za-z0-9_-]+$/.test(key)
+            typeof value === "string" &&
+            /^[A-Za-z0-9_-]+$/.test(value)
         );
 
     }
 
 
-    /* =========================================
-       تحميل streams.json
-       ========================================= */
+    /*
+     * حساب مساحة 16:9 الصحيحة
+     */
+    function resizeVideoArea() {
 
+        const stageWidth =
+            stage.clientWidth;
+
+        const stageHeight =
+            stage.clientHeight;
+
+
+        if (
+            stageWidth <= 0 ||
+            stageHeight <= 0
+        ) {
+            return;
+        }
+
+
+        const ratio =
+            16 / 9;
+
+
+        /*
+         * أولاً نفترض أن العرض هو العامل المحدد
+         */
+        let width =
+            stageWidth;
+
+        let height =
+            width / ratio;
+
+
+        /*
+         * إذا كان الارتفاع أكبر من الشاشة،
+         * نعتمد الارتفاع بدل العرض.
+         */
+        if (height > stageHeight) {
+
+            height =
+                stageHeight;
+
+            width =
+                height * ratio;
+
+        }
+
+
+        /*
+         * نحولها لأرقام صحيحة
+         */
+        width =
+            Math.floor(width);
+
+        height =
+            Math.floor(height);
+
+
+        /*
+         * تطبيق الحجم الحقيقي
+         */
+        videoArea.style.width =
+            width + "px";
+
+        videoArea.style.height =
+            height + "px";
+
+    }
+
+
+    /*
+     * تحميل البث من streams.json
+     */
     async function loadStream() {
 
         try {
@@ -197,7 +247,7 @@ body {
             if (!validKey(streamKey)) {
 
                 throw new Error(
-                    "Invalid stream key"
+                    "Invalid stream"
                 );
 
             }
@@ -205,7 +255,7 @@ body {
 
             const response =
                 await fetch(
-                    CONFIG.streamsFile +
+                    STREAMS_FILE +
                     "?v=" +
                     Date.now(),
                     {
@@ -217,7 +267,7 @@ body {
             if (!response.ok) {
 
                 throw new Error(
-                    "Unable to load streams.json"
+                    "Cannot load streams.json"
                 );
 
             }
@@ -227,11 +277,11 @@ body {
                 await response.json();
 
 
-            if (
-                !data ||
-                !data.streams ||
-                !data.streams[streamKey]
-            ) {
+            const stream =
+                data?.streams?.[streamKey];
+
+
+            if (!stream) {
 
                 throw new Error(
                     "Stream not found"
@@ -239,14 +289,6 @@ body {
 
             }
 
-
-            const stream =
-                data.streams[streamKey];
-
-
-            /* =====================================
-               التحقق من Match ID
-               ===================================== */
 
             if (
                 typeof stream.match !== "string" ||
@@ -262,173 +304,71 @@ body {
             }
 
 
-            /* =====================================
-               إنشاء رابط YasirTV
-               ===================================== */
-
-            const playerURL =
-                CONFIG.playerHost +
+            /*
+             * تشغيل YasirTV
+             */
+            player.src =
+                PLAYER_HOST +
                 "/playerv5.php?match=" +
                 encodeURIComponent(
                     stream.match
                 );
 
 
-            /* =====================================
-               تشغيل البث
-               ===================================== */
-
-            player.src = playerURL;
-
-
         } catch (error) {
 
-            console.error(
-                "Player error:",
-                error
-            );
+            console.error(error);
 
             /*
-             * لا نعرض معلومات داخلية للمستخدم
+             * لا نعرض تفاصيل الخطأ داخل المشغل
              */
-
-            player.removeAttribute(
-                "src"
-            );
+            player.removeAttribute("src");
 
         }
 
     }
 
 
-    /* =========================================
-       ضبط الحجم
-       ========================================= */
+    /*
+     * تشغيل أولي
+     */
+    resizeVideoArea();
 
-    function resizePlayer() {
-
-        /*
-         * لا نستخدم 16:9 هنا.
-         *
-         * السبب:
-         * الـiframe الخارجي يجب أن يتبع
-         * المساحة التي يعطيها WebView
-         * بدل فرض أبعاد على المشغل الداخلي.
-         */
+    loadStream();
 
 
-        const width =
-            Math.max(
-                1,
-                document.documentElement.clientWidth
-            );
-
-
-        const height =
-            Math.max(
-                1,
-                document.documentElement.clientHeight
-            );
-
-
-        /*
-         * المرحلة نفسها تحدد الحجم.
-         */
-
-        stage.style.width =
-            width + "px";
-
-
-        stage.style.height =
-            Math.max(
-                1,
-                height - 4
-            ) + "px";
-
-
-        /*
-         * iframe يأخذ المرحلة كاملة.
-         */
-
-        player.style.width =
-            "100%";
-
-        player.style.height =
-            "100%";
-
-    }
-
-
-    /* =========================================
-       ResizeObserver
-       ========================================= */
-
-    if (window.ResizeObserver) {
-
-        const observer =
-            new ResizeObserver(
-                function () {
-
-                    resizePlayer();
-
-                }
-            );
-
-        observer.observe(
-            document.documentElement
-        );
-
-    }
-
-
-    /* =========================================
-       تغيير حجم الشاشة
-       ========================================= */
-
+    /*
+     * تغيير الحجم
+     */
     window.addEventListener(
         "resize",
-        function () {
-
-            resizePlayer();
-
-        },
+        resizeVideoArea,
         {
             passive: true
         }
     );
 
 
-    /* =========================================
-       تغيير الاتجاه
-       ========================================= */
-
+    /*
+     * تغيير الاتجاه
+     */
     window.addEventListener(
         "orientationchange",
         function () {
 
-            /*
-             * WebView يحتاج وقتًا بسيطًا
-             * حتى يحصل على الحجم الجديد.
-             */
-
             setTimeout(
-                resizePlayer,
+                resizeVideoArea,
                 50
             );
 
             setTimeout(
-                resizePlayer,
-                200
+                resizeVideoArea,
+                250
             );
 
             setTimeout(
-                resizePlayer,
-                500
-            );
-
-            setTimeout(
-                resizePlayer,
-                1000
+                resizeVideoArea,
+                600
             );
 
         },
@@ -438,19 +378,14 @@ body {
     );
 
 
-    /* =========================================
-       visualViewport
-       ========================================= */
-
+    /*
+     * visualViewport
+     */
     if (window.visualViewport) {
 
         window.visualViewport.addEventListener(
             "resize",
-            function () {
-
-                resizePlayer();
-
-            },
+            resizeVideoArea,
             {
                 passive: true
             }
@@ -459,87 +394,25 @@ body {
     }
 
 
-    /* =========================================
-       بعد تحميل iframe
-       ========================================= */
+    /*
+     * مراقبة تغيّر حجم WebView
+     */
+    if (window.ResizeObserver) {
 
-    player.addEventListener(
-        "load",
-        function () {
+        const observer =
+            new ResizeObserver(
+                function () {
 
-            setTimeout(
-                resizePlayer,
-                100
+                    resizeVideoArea();
+
+                }
             );
 
-            setTimeout(
-                resizePlayer,
-                400
-            );
+        observer.observe(stage);
 
-        }
-    );
-
-
-    /* =========================================
-       منع فتح نافذة من الصفحة الخارجية
-       ========================================= */
-
-    window.open =
-        function () {
-
-            return null;
-
-        };
-
-
-    /* =========================================
-       منع روابط _blank في صفحتنا
-       ========================================= */
-
-    document.addEventListener(
-        "click",
-        function (event) {
-
-            const link =
-                event.target.closest &&
-                event.target.closest("a");
-
-
-            if (!link) {
-
-                return;
-
-            }
-
-
-            if (
-                link.target === "_blank" ||
-                link.target === "_new"
-            ) {
-
-                event.preventDefault();
-
-                event.stopImmediatePropagation();
-
-            }
-
-        },
-        true
-    );
-
-
-    /* =========================================
-       البداية
-       ========================================= */
-
-    resizePlayer();
-
-    loadStream();
-
+    }
 
 })();
-
 </script>
 
 </body>
