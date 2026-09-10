@@ -4,10 +4,7 @@
 <meta charset="UTF-8">
 
 <meta name="viewport"
-      content="width=device-width,
-               initial-scale=1.0,
-               maximum-scale=1.0,
-               user-scalable=no">
+      content="width=device-width, initial-scale=1.0">
 
 <title>Player</title>
 
@@ -22,12 +19,8 @@ body {
     overflow: hidden;
 }
 
-/*
-   الحجم الأصلي لمشغل YasirTV
-   640 × 360
-*/
-.player-wrapper {
-    position: absolute;
+.player {
+    position: fixed;
 
     width: 640px;
     height: 360px;
@@ -38,80 +31,65 @@ body {
     transform-origin: center center;
 }
 
-.player-wrapper iframe {
+.player iframe {
     display: block;
 
     width: 640px;
     height: 360px;
 
-    border: 0;
     margin: 0;
     padding: 0;
+    border: 0;
+
+    overflow: hidden;
 }
 </style>
 </head>
 
 <body>
 
-<div class="player-wrapper" id="player">
+<div class="player" id="player">
 
     <iframe
         src="https://912acsss8af382.yasirtv.com/playerv5.php?match=4828487"
         frameborder="0"
-        allowfullscreen
         scrolling="no"
-        referrerpolicy="no-referrer">
+        allowfullscreen>
     </iframe>
 
 </div>
 
 <script>
-
 const player = document.getElementById("player");
 
 function resizePlayer() {
 
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    const baseWidth = 640;
+    const baseHeight = 360;
+
+    const availableWidth = window.innerWidth;
+    const availableHeight = window.innerHeight;
+
+    const scaleX = availableWidth / baseWidth;
+    const scaleY = availableHeight / baseHeight;
 
     /*
-       الحجم الأصلي
-    */
-    const originalWidth = 640;
-    const originalHeight = 360;
+     * يسمح بالتصغير فقط.
+     * يمنع تكبير المشغل فوق 640×360.
+     */
+    const scale = Math.min(1, scaleX, scaleY);
 
-    /*
-       نحسب أفضل Scale بدون تشويه
-    */
-    const scaleX = viewportWidth / originalWidth;
-    const scaleY = viewportHeight / originalHeight;
-
-    const scale = Math.min(scaleX, scaleY);
-
-    /*
-       تكبير/تصغير المشغل بالكامل
-    */
     player.style.transform =
         `translate(-50%, -50%) scale(${scale})`;
 }
 
-/*
-   عند فتح الصفحة
-*/
 resizePlayer();
 
-/*
-   عند تغيير حجم نافذة التطبيق
-*/
 window.addEventListener("resize", resizePlayer);
 
-/*
-   عند تغيير الاتجاه
-*/
 window.addEventListener("orientationchange", () => {
-    setTimeout(resizePlayer, 150);
+    setTimeout(resizePlayer, 200);
 });
-
 </script>
 
 </body>
