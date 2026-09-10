@@ -22,60 +22,58 @@ body {
 
     background: #000;
     overflow: hidden;
+
+    /* منع أي تمدد إضافي */
+    box-sizing: border-box;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
 }
 
 #stage {
     position: fixed;
 
-    inset: 0;
+    /*
+     * Safe Area
+     */
+    top: env(safe-area-inset-top, 0px);
+    right: env(safe-area-inset-right, 0px);
+    bottom: env(safe-area-inset-bottom, 0px);
+    left: env(safe-area-inset-left, 0px);
 
-    width: 100%;
-    height: 100%;
+    width: auto;
+    height: auto;
 
     display: flex;
 
     align-items: center;
     justify-content: center;
+
+    overflow: hidden;
 
     background: #000;
-
-    overflow: hidden;
 }
 
-/*
- * الحاوية الحقيقية للمشغل
- */
-#playerBox {
-    position: relative;
-
-    width: 100%;
-    height: 100%;
-
-    display: flex;
-
-    align-items: center;
-    justify-content: center;
-
-    overflow: hidden;
-}
-
-/*
- * iframe
- *
- * يتم تحديد حجمه بواسطة JavaScript
- * للحفاظ على نسبة 16:9
- */
 #player {
     display: block;
 
-    width: 640px;
-    height: 360px;
+    /*
+     * JavaScript يحدد الحجم الحقيقي
+     */
+    width: 1px;
+    height: 1px;
+
+    max-width: 100%;
+    max-height: 100%;
+
+    flex: 0 0 auto;
 
     border: 0;
     margin: 0;
     padding: 0;
-
-    flex: none;
 
     background: #000;
 }
@@ -86,19 +84,15 @@ body {
 
 <div id="stage">
 
-    <div id="playerBox">
-
-        <iframe
-            id="player"
-            title="Video Player"
-            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
-            allowfullscreen
-            webkitallowfullscreen="true"
-            scrolling="no"
-            referrerpolicy="no-referrer">
-        </iframe>
-
-    </div>
+    <iframe
+        id="player"
+        title="Video Player"
+        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+        allowfullscreen
+        webkitallowfullscreen="true"
+        scrolling="no"
+        referrerpolicy="no-referrer">
+    </iframe>
 
 </div>
 
@@ -113,9 +107,6 @@ body {
     const match =
         params.get("match") || "4828487";
 
-    /*
-     * حماية رقم المباراة
-     */
     if (!/^[A-Za-z0-9_-]+$/.test(match)) {
         document.body.innerHTML = "";
         return;
@@ -124,8 +115,11 @@ body {
     const player =
         document.getElementById("player");
 
+    const stage =
+        document.getElementById("stage");
+
     /*
-     * رابط المشغل الأصلي
+     * رابط YasirTV
      */
     player.src =
         "https://912acsss8af382.yasirtv.com/playerv5.php?match=" +
@@ -133,37 +127,101 @@ body {
 
 
     /*
-     * تغيير الحجم تلقائيًا
+     * الحصول على الحجم الحقيقي المتاح
+     */
+    function getViewportSize() {
+
+        let width =
+            document.documentElement.clientWidth;
+
+        let height =
+            document.documentElement.clientHeight;
+
+        /*
+         * visualViewport أدق داخل WebView
+         */
+        if (window.visualViewport) {
+
+            if (window.visualViewport.width > 0) {
+                width =
+                    Math.min(
+                        width,
+                        window.visualViewport.width
+                    );
+            }
+
+            if (window.visualViewport.height > 0) {
+                height =
+                    Math.min(
+                        height,
+                        window.visualViewport.height
+                    );
+            }
+        }
+
+        return {
+            width: Math.max(1, width),
+            height: Math.max(1, height)
+        };
+    }
+
+
+    /*
+     * ضبط حجم المشغل
      */
     function resizePlayer() {
 
-        const box =
-            document.getElementById("playerBox");
+        const viewport =
+            getViewportSize();
+
+        /*
+         * نستخدم مساحة stage الفعلية
+         */
+        const stageWidth =
+            Math.min(
+                viewport.width,
+                stage.clientWidth
+            );
+
+        const stageHeight =
+            Math.min(
+                viewport.height,
+                stage.clientHeight
+            );
+
+        /*
+         * هامش أمان
+         *
+         * يمنع خروج أي جزء من المشغل
+         * بسبب فروقات WebView / Status Bar / Navigation Bar
+         */
+        const safety = 0.94;
 
         const availableWidth =
-            box.clientWidth;
+            Math.max(
+                1,
+                stageWidth * safety
+            );
 
         const availableHeight =
-            box.clientHeight;
+            Math.max(
+                1,
+                stageHeight * safety
+            );
 
         /*
-         * نسبة المشغل الأصلية
+         * النسبة الأصلية 16:9
          */
-        const aspectRatio =
-            16 / 9;
+        const ratio = 16 / 9;
 
-        /*
-         * نحسب الحجم المناسب للعرض
-         */
         let width =
             availableWidth;
 
         let height =
-            width / aspectRatio;
+            width / ratio;
 
         /*
-         * إذا أصبح الارتفاع أكبر من المساحة
-         * المتاحة، نعتمد الارتفاع بدل العرض
+         * إذا كان الارتفاع أكبر من المساحة
          */
         if (height > availableHeight) {
 
@@ -171,56 +229,69 @@ body {
                 availableHeight;
 
             width =
-                height * aspectRatio;
+                height * ratio;
         }
 
         /*
-         * هامش بسيط جدًا حتى لا يحدث قص
-         * بسبب اختلافات WebView
+         * حماية إضافية
          */
-        const safeMargin = 0.98;
+        width =
+            Math.min(
+                width,
+                availableWidth
+            );
 
-        width *= safeMargin;
-        height *= safeMargin;
+        height =
+            Math.min(
+                height,
+                availableHeight
+            );
 
         /*
-         * تطبيق الحجم النهائي
+         * تقريب للأسفل لمنع كسر البكسل
          */
+        width =
+            Math.max(
+                1,
+                Math.floor(width)
+            );
+
+        height =
+            Math.max(
+                1,
+                Math.floor(height)
+            );
+
         player.style.width =
-            Math.floor(width) + "px";
+            width + "px";
 
         player.style.height =
-            Math.floor(height) + "px";
+            height + "px";
     }
 
 
     /*
-     * تشغيل أولي
+     * أول حساب بعد تحميل الصفحة
      */
     resizePlayer();
 
 
     /*
-     * مراقبة أي تغيير حقيقي في حجم WebView
+     * مراقبة حجم WebView الحقيقي
      */
     if (window.ResizeObserver) {
 
         const observer =
             new ResizeObserver(function () {
-
                 resizePlayer();
-
             });
 
-        observer.observe(
-            document.getElementById("stage")
-        );
-
+        observer.observe(stage);
     }
 
 
     /*
-     * احتياط للمتصفحات/WebView القديمة
+     * تغيير حجم النافذة
      */
     window.addEventListener(
         "resize",
@@ -229,14 +300,19 @@ body {
     );
 
 
+    /*
+     * تغيير الاتجاه
+     */
     window.addEventListener(
         "orientationchange",
         function () {
 
-            setTimeout(
-                resizePlayer,
-                300
-            );
+            /*
+             * بعض أجهزة Android تحتاج أكثر من محاولة
+             */
+            setTimeout(resizePlayer, 100);
+            setTimeout(resizePlayer, 400);
+            setTimeout(resizePlayer, 800);
 
         },
         { passive: true }
@@ -244,7 +320,40 @@ body {
 
 
     /*
-     * منع Pop-ups من الصفحة الوسيطة
+     * visualViewport
+     */
+    if (window.visualViewport) {
+
+        window.visualViewport.addEventListener(
+            "resize",
+            resizePlayer,
+            { passive: true }
+        );
+
+        window.visualViewport.addEventListener(
+            "scroll",
+            resizePlayer,
+            { passive: true }
+        );
+    }
+
+
+    /*
+     * إعادة الحساب بعد تحميل iframe
+     */
+    player.addEventListener(
+        "load",
+        function () {
+
+            setTimeout(resizePlayer, 100);
+            setTimeout(resizePlayer, 500);
+
+        }
+    );
+
+
+    /*
+     * منع Popups من صفحة الوسيط
      */
     window.open = function () {
         return null;
@@ -267,7 +376,6 @@ body {
             if (link.target === "_blank") {
 
                 event.preventDefault();
-
                 event.stopImmediatePropagation();
             }
 
