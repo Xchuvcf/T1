@@ -21,22 +21,30 @@ body {
     padding: 0;
 
     background: #000;
-
     overflow: hidden;
 }
 
+/*
+ * مساحة المشغل
+ * أصغر قليلًا من نافذة التطبيق
+ */
 #root {
     position: fixed;
-    inset: 0;
 
-    width: 100%;
-    height: 100%;
+    width: 92%;
+    height: 92%;
+
+    left: 4%;
+    top: 4%;
 
     overflow: hidden;
 
     background: #000;
 }
 
+/*
+ * مشغل YasirTV
+ */
 #player {
     position: absolute;
 
@@ -63,6 +71,7 @@ body {
 
     <iframe
         id="player"
+        title="Video Player"
         allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
         allowfullscreen
         webkitallowfullscreen="true"
@@ -75,10 +84,20 @@ body {
 <script>
 (function () {
 
+    "use strict";
+
     const params = new URLSearchParams(window.location.search);
+
+    /*
+     * مثال:
+     * ?match=4828487
+     */
 
     const match = params.get("match") || "4828487";
 
+    /*
+     * حماية رقم المباراة
+     */
     if (!/^[A-Za-z0-9_-]+$/.test(match)) {
         document.body.innerHTML = "";
         return;
@@ -86,65 +105,115 @@ body {
 
     const player = document.getElementById("player");
 
+    /*
+     * رابط YasirTV الأصلي
+     */
     player.src =
         "https://912acsss8af382.yasirtv.com/playerv5.php?match=" +
         encodeURIComponent(match);
 
 
     /*
-     * لا نستخدم scale
-     * لا نغير الاتجاه
-     * لا نفرض 16:9
-     *
-     * الـiframe يأخذ فقط المساحة
-     * التي أعطاها له التطبيق.
+     * تحديث الحجم عند تغيير حجم نافذة
      */
-
     function updateSize() {
 
-        const w = window.innerWidth;
-        const h = window.innerHeight;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
 
-        player.style.width = w + "px";
-        player.style.height = h + "px";
+        /*
+         * 92% من مساحة WebView
+         */
+        const playerWidth = Math.floor(width * 0.92);
+        const playerHeight = Math.floor(height * 0.92);
+
+        /*
+         * توسيط المشغل
+         */
+        const left = Math.floor((width - playerWidth) / 2);
+        const top = Math.floor((height - playerHeight) / 2);
+
+        player.style.width = playerWidth + "px";
+        player.style.height = playerHeight + "px";
+
+        player.style.left = "0px";
+        player.style.top = "0px";
+
+        const root = document.getElementById("root");
+
+        root.style.width = playerWidth + "px";
+        root.style.height = playerHeight + "px";
+
+        root.style.left = left + "px";
+        root.style.top = top + "px";
     }
-
-    updateSize();
-
-    window.addEventListener("resize", updateSize);
-
-    window.addEventListener("orientationchange", function () {
-        setTimeout(updateSize, 300);
-    });
 
 
     /*
-     * منع Popups في الصفحة الوسيطة
+     * أول تشغيل
      */
+    updateSize();
 
+
+    /*
+     * عند تغيير حجم نافذة تطبيق المشاهدة
+     */
+    window.addEventListener(
+        "resize",
+        updateSize,
+        { passive: true }
+    );
+
+
+    /*
+     * عند تغيير اتجاه الجهاز
+     */
+    window.addEventListener(
+        "orientationchange",
+        function () {
+
+            setTimeout(
+                updateSize,
+                300
+            );
+
+        },
+        { passive: true }
+    );
+
+
+    /*
+     * منع Pop-up من الصفحة الوسيطة
+     */
     window.open = function () {
         return null;
     };
 
 
     /*
-     * منع الروابط التي تحاول فتح نافذة جديدة
+     * منع فتح تبويبات جديدة
      */
+    document.addEventListener(
+        "click",
+        function (event) {
 
-    document.addEventListener("click", function (e) {
+            const link =
+                event.target.closest &&
+                event.target.closest("a");
 
-        const a = e.target.closest("a");
+            if (!link) return;
 
-        if (!a) return;
+            if (link.target === "_blank") {
 
-        if (a.target === "_blank") {
+                event.preventDefault();
 
-            e.preventDefault();
-            e.stopImmediatePropagation();
+                event.stopImmediatePropagation();
 
-        }
+            }
 
-    }, true);
+        },
+        true
+    );
 
 })();
 </script>
