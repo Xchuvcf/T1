@@ -3,86 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>البث المباشر الذكي</title>
+    <title>البث المباشر - خالي من الإعلانات</title>
     
+    <!-- استدعاء مشغل Clappr لتشغيل البث -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
     
     <style>
-        body, html { margin: 0; padding: 0; background: #0c0c0c; height: 100%; color: white; font-family: Tahoma, sans-serif; overflow: hidden; }
+        /* تصفير الهوامش وجعل الخلفية سوداء بالكامل */
+        body, html {
+            margin: 0;
+            padding: 0;
+            background: #0c0c0c;
+            height: 100%;
+            color: white;
+            font-family: Tahoma, Arial, sans-serif;
+            overflow: hidden;
+        }
         
-        #player-container { width: 100%; height: 100%; display: none; }
+        /* حاوية الفيديو المخفية افتراضياً حتى يجهز البث */
+        #player-container {
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
         
-        /* تصميم شاشة التحميل */
-        #loading { display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; }
-        .loader { border: 4px solid #333; border-top: 4px solid #e50914; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* تصميم شاشة التحميل الاحترافية */
+        #loading-screen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            flex-direction: column;
+            text-align: center;
+            padding: 20px;
+        }
         
-        /* الإطار المخفي الذي يقوم بالعمل القذر */
-        #spy-frame { width: 0; height: 0; border: none; position: absolute; visibility: hidden; }
+        .loader {
+            border: 4px solid #333;
+            border-top: 4px solid #e50914;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+        
+        .error-text {
+            color: #e50914;
+            margin-top: 10px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
 
-    <div id="loading">
-        <div class="loader"></div>
-        <h3 id="status-text">جاري استخراج السيرفرات وتخطي الإعلانات...</h3>
+    <!-- شاشة التحميل الأولية -->
+    <div id="loading-screen">
+        <div class="loader" id="spinner"></div>
+        <h3 id="status-text">جاري استخراج رابط البث النقي... الرجاء الانتظار (قد يستغرق 10 ثوانٍ)</h3>
     </div>
 
+    <!-- حاوية مشغل الفيديو -->
     <div id="player-container"></div>
 
-    <!-- إطار التجسس المخفي الذي سيفتح صفحة الإعلانات بالخفاء -->
-    <iframe id="spy-frame"></iframe>
-
     <script>
-        const workerUrl = "https://xmsb.danapana303.workers.dev/";
+        // الرابط الداخلي لـ Vercel Serverless Function الذي أنشأناه
+        const apiUrl = "/api/extract"; 
+        // رابط البث المستهدف
         const targetStream = "https://daddylive.app/player/embed.php?id=91";
-        
-        // تحميل الصفحة الملغمة داخل الإطار المخفي
-        document.getElementById('spy-frame').src = workerUrl + "?url=" + encodeURIComponent(targetStream);
 
-        let streamsFound = [];
-        let player = null;
-
-        // الاستماع للرسائل القادمة من إطار التجسس (الـ Worker سيرسل الرابط هنا)
-        window.addEventListener('message', function(event) {
-            if (event.data && event.data.type === 'hls_found') {
-                const streamUrl = event.data.url;
+        async function fetchCleanStream() {
+            try {
+                // طلب استخراج البث من الخادم الخلفي (Vercel)
+                const response = await fetch(`${apiUrl}?url=${encodeURIComponent(targetStream)}`);
+                const data = await response.json();
                 
-                // التأكد من عدم تكرار نفس الرابط
-                if (!streamsFound.includes(streamUrl)) {
-                    streamsFound.push(streamUrl);
+                if (data.success && data.stream) {
+                    // نجاح الاستخراج: إخفاء شاشة التحميل وإظهار المشغل
+                    document.getElementById('loading-screen').style.display = 'none';
+                    document.getElementById('player-container').style.display = 'block';
                     
-                    // تشغيل أول رابط يتم اصطياده فوراً
-                    if (streamsFound.length === 1) {
-                        document.getElementById('loading').style.display = 'none';
-                        document.getElementById('player-container').style.display = 'block';
-                        
-                        player = new Clappr.Player({
-                            source: streamUrl,
-                            parentId: "#player-container",
-                            width: '100%',
-                            height: '100%',
-                            autoPlay: true,
-                            mimeType: "application/vnd.apple.mpegurl"
-                        });
-                        
-                        // تدمير الإطار الملغم نهائياً بعد الحصول على البث لتخفيف الضغط
-                        setTimeout(() => {
-                            const spyFrame = document.getElementById('spy-frame');
-                            if(spyFrame) spyFrame.remove();
-                        }, 2000);
-                    }
+                    // تشغيل الفيديو عبر Clappr
+                    var player = new Clappr.Player({
+                        source: data.stream,
+                        parentId: "#player-container",
+                        width: '100%',
+                        height: '100%',
+                        autoPlay: true,
+                        mimeType: "application/vnd.apple.mpegurl"
+                    });
+                } else {
+                    // فشل العثور على الرابط
+                    document.getElementById('spinner').style.display = 'none';
+                    document.getElementById('status-text').innerHTML = `<span class="error-text">فشل الاستخراج: ${data.error || 'لم يتم العثور على الرابط'}</span>`;
                 }
+            } catch (err) {
+                // فشل الاتصال بدالة Vercel من الأساس
+                document.getElementById('spinner').style.display = 'none';
+                document.getElementById('status-text').innerHTML = '<span class="error-text">حدث خطأ في الاتصال بالسيرفر الداخلي. تأكد من رفع مجلد api بشكل صحيح.</span>';
             }
-        });
+        }
 
-        // مهلة زمنية (Timeout) في حال فشل الاستخراج
-        setTimeout(() => {
-            if (streamsFound.length === 0) {
-                document.getElementById('status-text').innerHTML = '<span style="color:#e50914;">فشل الاتصال بالسيرفر الأصلي. يرجى تحديث الصفحة أو المحاولة لاحقاً.</span>';
-                document.querySelector('.loader').style.display = 'none';
-            }
-        }, 15000); // 15 ثانية كحد أقصى للبحث
+        // تشغيل العملية فور فتح الصفحة
+        fetchCleanStream();
     </script>
 
 </body>
