@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
 
@@ -22,9 +23,9 @@
 
         html,
         body {
+            margin: 0;
             width: 100%;
             height: 100%;
-            margin: 0;
             background: #050505;
             color: #fff;
             font-family:
@@ -52,23 +53,25 @@
             inset: 0;
 
             display: flex;
-            flex-direction: column;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
+            flex-direction: column;
 
             padding: 24px;
+
             text-align: center;
+
             background:
                 radial-gradient(
                     circle at center,
-                    #171717 0%,
-                    #050505 65%
+                    #181818 0%,
+                    #050505 70%
                 );
         }
 
         .loader {
-            width: 54px;
-            height: 54px;
+            width: 52px;
+            height: 52px;
 
             border: 4px solid #292929;
             border-top-color: #e50914;
@@ -78,7 +81,7 @@
             animation:
                 spin .8s linear infinite;
 
-            margin-bottom: 22px;
+            margin-bottom: 20px;
         }
 
         @keyframes spin {
@@ -88,25 +91,31 @@
         }
 
         #status {
+            max-width: 600px;
+
             font-size: 16px;
-            opacity: .9;
-            max-width: 500px;
+
             line-height: 1.7;
+
+            opacity: .92;
         }
 
         #error {
             display: none;
 
-            max-width: 520px;
+            max-width: 560px;
 
             padding: 18px;
 
+            margin-top: 15px;
+
             border-radius: 14px;
 
-            background: #160707;
-            border: 1px solid #5c1717;
+            background: #170707;
 
-            color: #ff6b6b;
+            border: 1px solid #541616;
+
+            color: #ff7777;
 
             line-height: 1.7;
         }
@@ -116,17 +125,19 @@
 
             margin-top: 18px;
 
-            padding: 12px 22px;
-
             border: 0;
+
+            padding: 12px 25px;
+
             border-radius: 10px;
 
             background: #e50914;
-            color: #fff;
 
-            cursor: pointer;
+            color: white;
 
             font-size: 15px;
+
+            cursor: pointer;
         }
 
         #retry:hover {
@@ -142,12 +153,12 @@
     <div id="loading">
 
         <div
-            class="loader"
-            id="loader">
+            id="spinner"
+            class="loader">
         </div>
 
         <div id="status">
-            جاري اكتشاف مصدر البث...
+            جاري تحليل مصدر البث...
         </div>
 
         <div id="error"></div>
@@ -165,21 +176,21 @@
 </div>
 
 <script>
-    const targetStream =
+    const API_URL = "/api/extract";
+
+    const TARGET_URL =
         "https://daddylive.app/player/embed.php?id=91";
 
-    const apiUrl = "/api/extract";
+    const MAX_RETRIES = 3;
 
+    let retries = 0;
     let player = null;
-    let attempts = 0;
-
-    const MAX_ATTEMPTS = 3;
 
     const loading =
         document.getElementById("loading");
 
-    const loader =
-        document.getElementById("loader");
+    const spinner =
+        document.getElementById("spinner");
 
     const status =
         document.getElementById("status");
@@ -187,7 +198,7 @@
     const errorBox =
         document.getElementById("error");
 
-    const retry =
+    const retryButton =
         document.getElementById("retry");
 
     function setStatus(message) {
@@ -195,61 +206,59 @@
     }
 
     function showError(message) {
-        loader.style.display = "none";
+        spinner.style.display = "none";
 
         status.style.display = "none";
 
         errorBox.textContent = message;
+
         errorBox.style.display = "block";
 
-        retry.style.display = "inline-block";
+        retryButton.style.display = "inline-block";
     }
 
     function showPlayer() {
         loading.style.display = "none";
 
-        const container =
-            document.getElementById("player");
-
-        container.style.display = "block";
+        document
+            .getElementById("player")
+            .style.display = "block";
     }
 
-    async function extractStream() {
+    async function extract() {
 
-        if (attempts >= MAX_ATTEMPTS) {
-            showError(
-                "تعذر العثور على مصدر بث صالح بعد عدة محاولات."
-            );
-
-            return;
+        if (retries >= MAX_RETRIES) {
+            retries = 0;
         }
 
-        attempts++;
+        retries++;
 
-        retry.style.display = "none";
+        retryButton.style.display = "none";
+
         errorBox.style.display = "none";
 
-        loader.style.display = "block";
+        spinner.style.display = "block";
+
         status.style.display = "block";
 
         setStatus(
-            `جاري تحليل المصدر... المحاولة ${attempts}/${MAX_ATTEMPTS}`
+            `جاري البحث عن أفضل مصدر... (${retries}/${MAX_RETRIES})`
         );
+
+        const controller =
+            new AbortController();
+
+        const timer =
+            setTimeout(
+                () => controller.abort(),
+                30000
+            );
 
         try {
 
-            const controller =
-                new AbortController();
-
-            const timeout =
-                setTimeout(
-                    () => controller.abort(),
-                    30000
-                );
-
             const response =
                 await fetch(
-                    `${apiUrl}?url=${encodeURIComponent(targetStream)}`,
+                    `${API_URL}?url=${encodeURIComponent(TARGET_URL)}`,
                     {
                         method: "GET",
                         cache: "no-store",
@@ -257,7 +266,7 @@
                     }
                 );
 
-            clearTimeout(timeout);
+            clearTimeout(timer);
 
             let data;
 
@@ -265,47 +274,63 @@
                 data = await response.json();
             } catch {
                 throw new Error(
-                    "الخادم أعاد استجابة غير صالحة."
+                    "استجابة الخادم غير صالحة."
                 );
             }
 
-            if (!response.ok || !data.success) {
+            if (
+                !response.ok ||
+                !data.success ||
+                !data.stream
+            ) {
                 throw new Error(
                     data.error ||
-                    "لم يتم العثور على مصدر البث."
-                );
-            }
-
-            if (!data.stream) {
-                throw new Error(
-                    "تم العثور على نتيجة بدون رابط بث."
+                    "لم يتم العثور على مصدر بث."
                 );
             }
 
             setStatus(
                 data.verified
-                    ? "تم العثور على بث صالح. جاري التشغيل..."
-                    : "تم العثور على مصدر بث. جاري التشغيل..."
+                    ? "تم التحقق من المصدر. جاري التشغيل..."
+                    : "تم العثور على مصدر. جاري التشغيل..."
             );
 
             startPlayer(data.stream);
 
         } catch (error) {
 
-            if (error.name === "AbortError") {
+            clearTimeout(timer);
+
+            if (
+                error.name ===
+                "AbortError"
+            ) {
                 showError(
-                    "انتهت مهلة الاتصال بالخادم."
+                    "انتهت مهلة استخراج المصدر."
                 );
-            } else {
-                showError(
-                    error.message ||
-                    "حدث خطأ غير معروف."
-                );
+
+                return;
             }
+
+            showError(
+                error.message ||
+                "حدث خطأ أثناء استخراج البث."
+            );
         }
     }
 
-    function startPlayer(streamUrl) {
+    function startPlayer(source) {
+
+        if (
+            typeof Clappr ===
+            "undefined"
+        ) {
+            showError(
+                "تعذر تحميل مشغل الفيديو."
+            );
+
+            return;
+        }
 
         if (player) {
             try {
@@ -317,11 +342,12 @@
 
         player =
             new Clappr.Player({
-                source: streamUrl,
+                source,
 
                 parentId: "#player",
 
                 width: "100%",
+
                 height: "100%",
 
                 autoPlay: true,
@@ -333,47 +359,27 @@
 
                 playback: {
                     preload: "auto"
-                },
-
-                chromeless: false,
-
-                mediacontrol: {
-                    seekbar: "#e50914"
                 }
             });
 
         player.on(
             Clappr.Events.PLAYER_ERROR,
             () => {
-
                 console.warn(
-                    "Player error"
-                );
-
-                showError(
-                    "تعذر تشغيل مصدر البث في المشغل."
+                    "Clappr player error"
                 );
             }
         );
     }
 
-    retry.addEventListener(
+    retryButton.addEventListener(
         "click",
-        () => {
-
-            if (attempts >= MAX_ATTEMPTS) {
-                attempts = 0;
-            }
-
-            extractStream();
-        }
+        extract
     );
 
     window.addEventListener(
         "load",
-        () => {
-            extractStream();
-        }
+        extract
     );
 </script>
 
