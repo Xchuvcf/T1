@@ -1,8 +1,5 @@
 const chromium = require('@sparticuz/chromium');
-const puppeteer = require('puppeteer-extra');
-const StealthPlugin = require('puppeteer-extra-plugin-stealth');
-
-puppeteer.use(StealthPlugin());
+const puppeteer = require('puppeteer-core'); // استخدام النسخة الأساسية فقط
 
 module.exports = async (req, res) => {
     const targetUrl = req.query.url;
@@ -11,14 +8,20 @@ module.exports = async (req, res) => {
     let browser;
     try {
         browser = await puppeteer.launch({
-            args: chromium.args,
+            // إضافة أمر التخفي ضمن إعدادات المتصفح
+            args: [...chromium.args, '--disable-blink-features=AutomationControlled'],
             defaultViewport: chromium.defaultViewport,
             executablePath: await chromium.executablePath(),
             headless: chromium.headless,
         });
         
         const page = await browser.newPage();
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+        
+        // حقن كود التخفي يدوياً لخداع جدار الحماية (Stealth Mode)
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        await page.evaluateOnNewDocument(() => {
+            Object.defineProperty(navigator, 'webdriver', { get: () => false });
+        });
 
         let streamUrl = null;
 
@@ -26,13 +29,12 @@ module.exports = async (req, res) => {
         page.on('request', request => {
             if (request.url().includes('.m3u8')) {
                 streamUrl = request.url();
-                request.abort(); 
+                request.abort(); // إيقاف التحميل فور العثور على الرابط
             } else {
                 request.continue();
             }
         });
 
-        // تم تقليل وقت الانتظار ليتناسب مع حدود Vercel المجانية
         await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 8000 });
         await new Promise(r => setTimeout(r, 1000));
         await browser.close();
