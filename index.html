@@ -2,116 +2,380 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>البث المباشر - خالي من الإعلانات</title>
-    
-    <!-- استدعاء مشغل Clappr لتشغيل البث -->
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
-    
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Smart HLS Player</title>
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"
+        defer>
+    </script>
+
     <style>
-        /* تصفير الهوامش وجعل الخلفية سوداء بالكامل */
-        body, html {
-            margin: 0;
-            padding: 0;
-            background: #0c0c0c;
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
             height: 100%;
-            color: white;
-            font-family: Tahoma, Arial, sans-serif;
+            margin: 0;
+            background: #050505;
+            color: #fff;
+            font-family:
+                Tahoma,
+                Arial,
+                sans-serif;
             overflow: hidden;
         }
-        
-        /* حاوية الفيديو المخفية افتراضياً حتى يجهز البث */
-        #player-container {
+
+        #app {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #player {
             width: 100%;
             height: 100%;
             display: none;
+            background: #000;
         }
-        
-        /* تصميم شاشة التحميل الاحترافية */
-        #loading-screen {
+
+        #loading {
+            position: absolute;
+            inset: 0;
+
             display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
             flex-direction: column;
+            justify-content: center;
+            align-items: center;
+
+            padding: 24px;
             text-align: center;
-            padding: 20px;
+            background:
+                radial-gradient(
+                    circle at center,
+                    #171717 0%,
+                    #050505 65%
+                );
         }
-        
+
         .loader {
-            border: 4px solid #333;
-            border-top: 4px solid #e50914;
+            width: 54px;
+            height: 54px;
+
+            border: 4px solid #292929;
+            border-top-color: #e50914;
+
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
+
+            animation:
+                spin .8s linear infinite;
+
+            margin-bottom: 22px;
         }
-        
-        @keyframes spin { 
-            0% { transform: rotate(0deg); } 
-            100% { transform: rotate(360deg); } 
-        }
-        
-        .error-text {
-            color: #e50914;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body>
 
-    <!-- شاشة التحميل الأولية -->
-    <div id="loading-screen">
-        <div class="loader" id="spinner"></div>
-        <h3 id="status-text">جاري استخراج رابط البث النقي... الرجاء الانتظار (قد يستغرق 10 ثوانٍ)</h3>
-    </div>
-
-    <!-- حاوية مشغل الفيديو -->
-    <div id="player-container"></div>
-
-    <script>
-        // الرابط الداخلي لـ Vercel Serverless Function الذي أنشأناه
-        const apiUrl = "/api/extract"; 
-        // رابط البث المستهدف
-        const targetStream = "https://daddylive.app/player/embed.php?id=91";
-
-        async function fetchCleanStream() {
-            try {
-                // طلب استخراج البث من الخادم الخلفي (Vercel)
-                const response = await fetch(`${apiUrl}?url=${encodeURIComponent(targetStream)}`);
-                const data = await response.json();
-                
-                if (data.success && data.stream) {
-                    // نجاح الاستخراج: إخفاء شاشة التحميل وإظهار المشغل
-                    document.getElementById('loading-screen').style.display = 'none';
-                    document.getElementById('player-container').style.display = 'block';
-                    
-                    // تشغيل الفيديو عبر Clappr
-                    var player = new Clappr.Player({
-                        source: data.stream,
-                        parentId: "#player-container",
-                        width: '100%',
-                        height: '100%',
-                        autoPlay: true,
-                        mimeType: "application/vnd.apple.mpegurl"
-                    });
-                } else {
-                    // فشل العثور على الرابط
-                    document.getElementById('spinner').style.display = 'none';
-                    document.getElementById('status-text').innerHTML = `<span class="error-text">فشل الاستخراج: ${data.error || 'لم يتم العثور على الرابط'}</span>`;
-                }
-            } catch (err) {
-                // فشل الاتصال بدالة Vercel من الأساس
-                document.getElementById('spinner').style.display = 'none';
-                document.getElementById('status-text').innerHTML = '<span class="error-text">حدث خطأ في الاتصال بالسيرفر الداخلي. تأكد من رفع مجلد api بشكل صحيح.</span>';
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
             }
         }
 
-        // تشغيل العملية فور فتح الصفحة
-        fetchCleanStream();
-    </script>
+        #status {
+            font-size: 16px;
+            opacity: .9;
+            max-width: 500px;
+            line-height: 1.7;
+        }
+
+        #error {
+            display: none;
+
+            max-width: 520px;
+
+            padding: 18px;
+
+            border-radius: 14px;
+
+            background: #160707;
+            border: 1px solid #5c1717;
+
+            color: #ff6b6b;
+
+            line-height: 1.7;
+        }
+
+        #retry {
+            display: none;
+
+            margin-top: 18px;
+
+            padding: 12px 22px;
+
+            border: 0;
+            border-radius: 10px;
+
+            background: #e50914;
+            color: #fff;
+
+            cursor: pointer;
+
+            font-size: 15px;
+        }
+
+        #retry:hover {
+            background: #f51a25;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="app">
+
+    <div id="loading">
+
+        <div
+            class="loader"
+            id="loader">
+        </div>
+
+        <div id="status">
+            جاري اكتشاف مصدر البث...
+        </div>
+
+        <div id="error"></div>
+
+        <button
+            id="retry"
+            type="button">
+            إعادة المحاولة
+        </button>
+
+    </div>
+
+    <div id="player"></div>
+
+</div>
+
+<script>
+    const targetStream =
+        "https://daddylive.app/player/embed.php?id=91";
+
+    const apiUrl = "/api/extract";
+
+    let player = null;
+    let attempts = 0;
+
+    const MAX_ATTEMPTS = 3;
+
+    const loading =
+        document.getElementById("loading");
+
+    const loader =
+        document.getElementById("loader");
+
+    const status =
+        document.getElementById("status");
+
+    const errorBox =
+        document.getElementById("error");
+
+    const retry =
+        document.getElementById("retry");
+
+    function setStatus(message) {
+        status.textContent = message;
+    }
+
+    function showError(message) {
+        loader.style.display = "none";
+
+        status.style.display = "none";
+
+        errorBox.textContent = message;
+        errorBox.style.display = "block";
+
+        retry.style.display = "inline-block";
+    }
+
+    function showPlayer() {
+        loading.style.display = "none";
+
+        const container =
+            document.getElementById("player");
+
+        container.style.display = "block";
+    }
+
+    async function extractStream() {
+
+        if (attempts >= MAX_ATTEMPTS) {
+            showError(
+                "تعذر العثور على مصدر بث صالح بعد عدة محاولات."
+            );
+
+            return;
+        }
+
+        attempts++;
+
+        retry.style.display = "none";
+        errorBox.style.display = "none";
+
+        loader.style.display = "block";
+        status.style.display = "block";
+
+        setStatus(
+            `جاري تحليل المصدر... المحاولة ${attempts}/${MAX_ATTEMPTS}`
+        );
+
+        try {
+
+            const controller =
+                new AbortController();
+
+            const timeout =
+                setTimeout(
+                    () => controller.abort(),
+                    30000
+                );
+
+            const response =
+                await fetch(
+                    `${apiUrl}?url=${encodeURIComponent(targetStream)}`,
+                    {
+                        method: "GET",
+                        cache: "no-store",
+                        signal: controller.signal
+                    }
+                );
+
+            clearTimeout(timeout);
+
+            let data;
+
+            try {
+                data = await response.json();
+            } catch {
+                throw new Error(
+                    "الخادم أعاد استجابة غير صالحة."
+                );
+            }
+
+            if (!response.ok || !data.success) {
+                throw new Error(
+                    data.error ||
+                    "لم يتم العثور على مصدر البث."
+                );
+            }
+
+            if (!data.stream) {
+                throw new Error(
+                    "تم العثور على نتيجة بدون رابط بث."
+                );
+            }
+
+            setStatus(
+                data.verified
+                    ? "تم العثور على بث صالح. جاري التشغيل..."
+                    : "تم العثور على مصدر بث. جاري التشغيل..."
+            );
+
+            startPlayer(data.stream);
+
+        } catch (error) {
+
+            if (error.name === "AbortError") {
+                showError(
+                    "انتهت مهلة الاتصال بالخادم."
+                );
+            } else {
+                showError(
+                    error.message ||
+                    "حدث خطأ غير معروف."
+                );
+            }
+        }
+    }
+
+    function startPlayer(streamUrl) {
+
+        if (player) {
+            try {
+                player.destroy();
+            } catch {}
+        }
+
+        showPlayer();
+
+        player =
+            new Clappr.Player({
+                source: streamUrl,
+
+                parentId: "#player",
+
+                width: "100%",
+                height: "100%",
+
+                autoPlay: true,
+
+                mute: false,
+
+                mimeType:
+                    "application/vnd.apple.mpegurl",
+
+                playback: {
+                    preload: "auto"
+                },
+
+                chromeless: false,
+
+                mediacontrol: {
+                    seekbar: "#e50914"
+                }
+            });
+
+        player.on(
+            Clappr.Events.PLAYER_ERROR,
+            () => {
+
+                console.warn(
+                    "Player error"
+                );
+
+                showError(
+                    "تعذر تشغيل مصدر البث في المشغل."
+                );
+            }
+        );
+    }
+
+    retry.addEventListener(
+        "click",
+        () => {
+
+            if (attempts >= MAX_ATTEMPTS) {
+                attempts = 0;
+            }
+
+            extractStream();
+        }
+    );
+
+    window.addEventListener(
+        "load",
+        () => {
+            extractStream();
+        }
+    );
+</script>
 
 </body>
 </html>
