@@ -1,386 +1,843 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
-
+<html lang="ar">
 <head>
-    <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+<meta charset="UTF-8">
 
-    <title>Smart HLS Player</title>
+<meta name="viewport"
+      content="width=device-width,
+               initial-scale=1.0,
+               maximum-scale=1.0,
+               user-scalable=no,
+               viewport-fit=cover">
 
-    <script
-        src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"
-        defer>
-    </script>
+<title>Stream Player</title>
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
+<style>
 
-        html,
-        body {
-            margin: 0;
-            width: 100%;
-            height: 100%;
-            background: #050505;
-            color: #fff;
-            font-family:
-                Tahoma,
-                Arial,
-                sans-serif;
-            overflow: hidden;
-        }
+/* =====================================================
+   RESET
+   ===================================================== */
 
-        #app {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
 
-        #player {
-            width: 100%;
-            height: 100%;
-            display: none;
-            background: #000;
-        }
+html,
+body {
+    width: 100%;
+    height: 100%;
 
-        #loading {
-            position: absolute;
-            inset: 0;
+    margin: 0;
+    padding: 0;
 
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
+    background: #000;
 
-            padding: 24px;
+    overflow: hidden;
+}
 
-            text-align: center;
 
-            background:
-                radial-gradient(
-                    circle at center,
-                    #181818 0%,
-                    #050505 70%
-                );
-        }
+/* =====================================================
+   التطبيق
+   ===================================================== */
 
-        .loader {
-            width: 52px;
-            height: 52px;
+#app {
+    position: fixed;
 
-            border: 4px solid #292929;
-            border-top-color: #e50914;
+    inset: 0;
 
-            border-radius: 50%;
+    width: 100%;
+    height: 100%;
 
-            animation:
-                spin .8s linear infinite;
+    background: #000;
 
-            margin-bottom: 20px;
-        }
+    overflow: hidden;
+}
 
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
 
-        #status {
-            max-width: 600px;
+/* =====================================================
+   حاوية المشغل
+   ===================================================== */
 
-            font-size: 16px;
+#playerContainer {
 
-            line-height: 1.7;
+    position: absolute;
 
-            opacity: .92;
-        }
+    inset: 0;
 
-        #error {
-            display: none;
+    width: 100%;
+    height: 100%;
 
-            max-width: 560px;
+    background: #000;
 
-            padding: 18px;
+    overflow: hidden;
 
-            margin-top: 15px;
+    display: flex;
 
-            border-radius: 14px;
+    align-items: center;
+    justify-content: center;
+}
 
-            background: #170707;
 
-            border: 1px solid #541616;
+/* =====================================================
+   أي iframe يتم إنشاؤه
+   ===================================================== */
 
-            color: #ff7777;
+#playerContainer iframe {
 
-            line-height: 1.7;
-        }
+    display: block;
 
-        #retry {
-            display: none;
+    width: 100% !important;
+    height: 100% !important;
 
-            margin-top: 18px;
+    max-width: none !important;
+    max-height: none !important;
 
-            border: 0;
+    margin: 0 !important;
+    padding: 0 !important;
 
-            padding: 12px 25px;
+    border: 0 !important;
 
-            border-radius: 10px;
+    background: #000;
 
-            background: #e50914;
+    flex: 0 0 auto;
+}
 
-            color: white;
 
-            font-size: 15px;
+/* =====================================================
+   رسالة الخطأ
+   ===================================================== */
 
-            cursor: pointer;
-        }
+#error {
 
-        #retry:hover {
-            background: #f51a25;
-        }
-    </style>
+    position: absolute;
+
+    left: 50%;
+    top: 50%;
+
+    transform:
+        translate(-50%, -50%);
+
+    width: 90%;
+
+    color: #fff;
+
+    text-align: center;
+
+    font-family:
+        Arial,
+        sans-serif;
+
+    font-size: 15px;
+
+    line-height: 1.6;
+
+    display: none;
+
+    z-index: 100;
+}
+
+</style>
+
 </head>
+
 
 <body>
 
 <div id="app">
 
-    <div id="loading">
+    <div id="playerContainer"></div>
 
-        <div
-            id="spinner"
-            class="loader">
-        </div>
-
-        <div id="status">
-            جاري تحليل مصدر البث...
-        </div>
-
-        <div id="error"></div>
-
-        <button
-            id="retry"
-            type="button">
-            إعادة المحاولة
-        </button>
-
-    </div>
-
-    <div id="player"></div>
+    <div id="error"></div>
 
 </div>
 
+
 <script>
-    const API_URL = "/api/extract";
 
-    const TARGET_URL =
-        "https://daddylive.app/player/embed.php?id=91";
+(function () {
 
-    const MAX_RETRIES = 3;
+    "use strict";
 
-    let retries = 0;
-    let player = null;
 
-    const loading =
-        document.getElementById("loading");
+    /* =================================================
+       ملفات الإعدادات
+       ================================================= */
 
-    const spinner =
-        document.getElementById("spinner");
+    const STREAMS_FILE =
+        "streams.json";
 
-    const status =
-        document.getElementById("status");
+    const IFRAMES_FILE =
+        "iframes.json";
 
-    const errorBox =
-        document.getElementById("error");
 
-    const retryButton =
-        document.getElementById("retry");
+    /* =================================================
+       العناصر
+       ================================================= */
 
-    function setStatus(message) {
-        status.textContent = message;
-    }
-
-    function showError(message) {
-        spinner.style.display = "none";
-
-        status.style.display = "none";
-
-        errorBox.textContent = message;
-
-        errorBox.style.display = "block";
-
-        retryButton.style.display = "inline-block";
-    }
-
-    function showPlayer() {
-        loading.style.display = "none";
-
-        document
-            .getElementById("player")
-            .style.display = "block";
-    }
-
-    async function extract() {
-
-        if (retries >= MAX_RETRIES) {
-            retries = 0;
-        }
-
-        retries++;
-
-        retryButton.style.display = "none";
-
-        errorBox.style.display = "none";
-
-        spinner.style.display = "block";
-
-        status.style.display = "block";
-
-        setStatus(
-            `جاري البحث عن أفضل مصدر... (${retries}/${MAX_RETRIES})`
+    const container =
+        document.getElementById(
+            "playerContainer"
         );
 
-        const controller =
-            new AbortController();
+    const errorBox =
+        document.getElementById(
+            "error"
+        );
 
-        const timer =
-            setTimeout(
-                () => controller.abort(),
-                30000
-            );
+
+    /* =================================================
+       قراءة:
+
+       ?stream=CH1
+       ================================================= */
+
+    const params =
+        new URLSearchParams(
+            window.location.search
+        );
+
+    const streamKey =
+        params.get("stream");
+
+
+    /* =================================================
+       التحقق من المفتاح
+       ================================================= */
+
+    function isValidKey(value) {
+
+        return (
+            typeof value === "string" &&
+            /^[A-Za-z0-9_-]+$/.test(value)
+        );
+
+    }
+
+
+    /* =================================================
+       التحقق من URL
+       ================================================= */
+
+    function isValidURL(value) {
 
         try {
 
-            const response =
-                await fetch(
-                    `${API_URL}?url=${encodeURIComponent(TARGET_URL)}`,
-                    {
-                        method: "GET",
-                        cache: "no-store",
-                        signal: controller.signal
-                    }
-                );
+            const url =
+                new URL(value);
 
-            clearTimeout(timer);
-
-            let data;
-
-            try {
-                data = await response.json();
-            } catch {
-                throw new Error(
-                    "استجابة الخادم غير صالحة."
-                );
-            }
-
-            if (
-                !response.ok ||
-                !data.success ||
-                !data.stream
-            ) {
-                throw new Error(
-                    data.error ||
-                    "لم يتم العثور على مصدر بث."
-                );
-            }
-
-            setStatus(
-                data.verified
-                    ? "تم التحقق من المصدر. جاري التشغيل..."
-                    : "تم العثور على مصدر. جاري التشغيل..."
+            return (
+                url.protocol === "https:" ||
+                url.protocol === "http:"
             );
 
-            startPlayer(data.stream);
+        } catch {
+
+            return false;
+
+        }
+
+    }
+
+
+    /* =================================================
+       إظهار الخطأ
+       ================================================= */
+
+    function showError(message) {
+
+        errorBox.textContent =
+            message;
+
+        errorBox.style.display =
+            "block";
+
+    }
+
+
+    /* =================================================
+       إخفاء الخطأ
+       ================================================= */
+
+    function hideError() {
+
+        errorBox.textContent =
+            "";
+
+        errorBox.style.display =
+            "none";
+
+    }
+
+
+    /* =================================================
+       تحميل JSON
+       ================================================= */
+
+    async function loadJSON(file) {
+
+        const response =
+            await fetch(
+                file +
+                "?v=" +
+                Date.now(),
+                {
+                    method: "GET",
+                    cache: "no-store"
+                }
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "تعذر تحميل " + file
+            );
+
+        }
+
+
+        return await response.json();
+
+    }
+
+
+    /* =================================================
+       تنظيف iframe السابق
+       ================================================= */
+
+    function clearPlayer() {
+
+        container.replaceChildren();
+
+    }
+
+
+    /* =================================================
+       إعداد iframe
+       ================================================= */
+
+    function prepareIframe(iframe) {
+
+        /*
+         * نجعل iframe مناسبًا لمساحة WebView
+         */
+
+        iframe.style.width =
+            "100%";
+
+        iframe.style.height =
+            "100%";
+
+        iframe.style.border =
+            "0";
+
+        iframe.style.margin =
+            "0";
+
+        iframe.style.padding =
+            "0";
+
+        iframe.setAttribute(
+            "scrolling",
+            "no"
+        );
+
+
+        /*
+         * Fullscreen
+         */
+
+        iframe.setAttribute(
+            "allowfullscreen",
+            ""
+        );
+
+        iframe.setAttribute(
+            "webkitallowfullscreen",
+            ""
+        );
+
+        iframe.setAttribute(
+            "mozallowfullscreen",
+            ""
+        );
+
+
+        /*
+         * الصلاحيات
+         */
+
+        iframe.setAttribute(
+            "allow",
+            [
+                "autoplay",
+                "encrypted-media",
+                "fullscreen",
+                "picture-in-picture",
+                "accelerometer",
+                "clipboard-write",
+                "gyroscope",
+                "web-share"
+            ].join("; ")
+        );
+
+
+        /*
+         * منع ظهور scrollbars
+         */
+
+        iframe.style.overflow =
+            "hidden";
+
+    }
+
+
+    /* =================================================
+       تشغيل SRC
+       ================================================= */
+
+    function createFromSrc(url) {
+
+        if (!isValidURL(url)) {
+
+            throw new Error(
+                "رابط iframe غير صالح"
+            );
+
+        }
+
+
+        const iframe =
+            document.createElement(
+                "iframe"
+            );
+
+
+        iframe.src = url;
+
+
+        iframe.title =
+            "Stream Player";
+
+
+        prepareIframe(iframe);
+
+
+        container.appendChild(
+            iframe
+        );
+
+    }
+
+
+    /* =================================================
+       تشغيل iframe كامل
+       ================================================= */
+
+    function createFromCode(code) {
+
+        if (
+            typeof code !== "string" ||
+            !code.trim()
+        ) {
+
+            throw new Error(
+                "كود iframe فارغ"
+            );
+
+        }
+
+
+        /*
+         * نحول النص إلى HTML
+         */
+
+        const template =
+            document.createElement(
+                "template"
+            );
+
+
+        template.innerHTML =
+            code.trim();
+
+
+        /*
+         * نبحث عن iframe فقط
+         */
+
+        const iframe =
+            template.content
+                .querySelector(
+                    "iframe"
+                );
+
+
+        if (!iframe) {
+
+            throw new Error(
+                "لم يتم العثور على iframe داخل الكود"
+            );
+
+        }
+
+
+        /*
+         * ننقله إلى الصفحة
+         */
+
+        prepareIframe(iframe);
+
+
+        container.appendChild(
+            iframe
+        );
+
+    }
+
+
+    /* =================================================
+       تشغيل البث
+       ================================================= */
+
+    async function loadStream() {
+
+        try {
+
+            hideError();
+
+            clearPlayer();
+
+
+            /* -----------------------------------------
+               التحقق من CH
+               ----------------------------------------- */
+
+            if (
+                !isValidKey(streamKey)
+            ) {
+
+                throw new Error(
+                    "استخدم رابطًا مثل ?stream=CH1"
+                );
+
+            }
+
+
+            /* -----------------------------------------
+               streams.json
+               ----------------------------------------- */
+
+            const streamsData =
+                await loadJSON(
+                    STREAMS_FILE
+                );
+
+
+            if (
+                !streamsData ||
+                typeof streamsData.streams !==
+                    "object"
+            ) {
+
+                throw new Error(
+                    "صيغة streams.json غير صحيحة"
+                );
+
+            }
+
+
+            const stream =
+                streamsData
+                    .streams[streamKey];
+
+
+            if (!stream) {
+
+                throw new Error(
+                    "القناة غير موجودة: " +
+                    streamKey
+                );
+
+            }
+
+
+            /* -----------------------------------------
+               iframe ID
+               ----------------------------------------- */
+
+            const iframeKey =
+                stream.iframe;
+
+
+            if (
+                !isValidKey(
+                    iframeKey
+                )
+            ) {
+
+                throw new Error(
+                    "iframe غير محدد لهذه القناة"
+                );
+
+            }
+
+
+            /* -----------------------------------------
+               iframes.json
+               ----------------------------------------- */
+
+            const iframeData =
+                await loadJSON(
+                    IFRAMES_FILE
+                );
+
+
+            if (
+                !iframeData ||
+                typeof iframeData.iframes !==
+                    "object"
+            ) {
+
+                throw new Error(
+                    "صيغة iframes.json غير صحيحة"
+                );
+
+            }
+
+
+            const config =
+                iframeData
+                    .iframes[iframeKey];
+
+
+            if (!config) {
+
+                throw new Error(
+                    "المشغل غير موجود: " +
+                    iframeKey
+                );
+
+            }
+
+
+            /* -----------------------------------------
+               تحديد نوع المصدر
+               ----------------------------------------- */
+
+            const type =
+                String(
+                    config.type || ""
+                ).toLowerCase();
+
+
+            /* -----------------------------------------
+               النوع الأول:
+
+               iframe كامل
+               ----------------------------------------- */
+
+            if (type === "iframe") {
+
+                createFromCode(
+                    config.code
+                );
+
+            }
+
+
+            /* -----------------------------------------
+               النوع الثاني:
+
+               src فقط
+               ----------------------------------------- */
+
+            else if (type === "src") {
+
+                createFromSrc(
+                    config.url
+                );
+
+            }
+
+
+            /* -----------------------------------------
+               نوع غير معروف
+               ----------------------------------------- */
+
+            else {
+
+                throw new Error(
+                    "نوع iframe غير معروف"
+                );
+
+            }
+
+
+            console.log(
+                "Stream:",
+                streamKey
+            );
+
+            console.log(
+                "Iframe:",
+                iframeKey
+            );
+
+            console.log(
+                "Type:",
+                type
+            );
+
 
         } catch (error) {
 
-            clearTimeout(timer);
+            console.error(
+                "Player Error:",
+                error
+            );
 
-            if (
-                error.name ===
-                "AbortError"
-            ) {
-                showError(
-                    "انتهت مهلة استخراج المصدر."
-                );
 
-                return;
-            }
+            clearPlayer();
+
 
             showError(
                 error.message ||
-                "حدث خطأ أثناء استخراج البث."
+                "تعذر تشغيل البث"
             );
+
         }
+
     }
 
-    function startPlayer(source) {
+
+    /* =================================================
+       تحديث الحجم
+       ================================================= */
+
+    function resizePlayer() {
+
+        const width =
+            window.innerWidth;
+
+        const height =
+            window.innerHeight;
+
 
         if (
-            typeof Clappr ===
-            "undefined"
+            width <= 0 ||
+            height <= 0
         ) {
-            showError(
-                "تعذر تحميل مشغل الفيديو."
-            );
 
             return;
+
         }
 
-        if (player) {
-            try {
-                player.destroy();
-            } catch {}
-        }
 
-        showPlayer();
+        container.style.width =
+            width + "px";
 
-        player =
-            new Clappr.Player({
-                source,
+        container.style.height =
+            height + "px";
 
-                parentId: "#player",
-
-                width: "100%",
-
-                height: "100%",
-
-                autoPlay: true,
-
-                mute: false,
-
-                mimeType:
-                    "application/vnd.apple.mpegurl",
-
-                playback: {
-                    preload: "auto"
-                }
-            });
-
-        player.on(
-            Clappr.Events.PLAYER_ERROR,
-            () => {
-                console.warn(
-                    "Clappr player error"
-                );
-            }
-        );
     }
 
-    retryButton.addEventListener(
-        "click",
-        extract
-    );
+
+    /* =================================================
+       البداية
+       ================================================= */
+
+    resizePlayer();
+
+    loadStream();
+
+
+    /* =================================================
+       WebView Resize
+       ================================================= */
 
     window.addEventListener(
-        "load",
-        extract
+        "resize",
+        resizePlayer,
+        {
+            passive: true
+        }
     );
+
+
+    /* =================================================
+       Orientation
+       ================================================= */
+
+    window.addEventListener(
+        "orientationchange",
+        function () {
+
+            setTimeout(
+                resizePlayer,
+                50
+            );
+
+            setTimeout(
+                resizePlayer,
+                200
+            );
+
+            setTimeout(
+                resizePlayer,
+                500
+            );
+
+        },
+        {
+            passive: true
+        }
+    );
+
+
+    /* =================================================
+       Android visualViewport
+       ================================================= */
+
+    if (window.visualViewport) {
+
+        window.visualViewport
+            .addEventListener(
+                "resize",
+                resizePlayer,
+                {
+                    passive: true
+                }
+            );
+
+    }
+
+
+    /* =================================================
+       مراقبة حجم الصفحة
+       ================================================= */
+
+    if (window.ResizeObserver) {
+
+        const observer =
+            new ResizeObserver(
+                function () {
+
+                    resizePlayer();
+
+                }
+            );
+
+        observer.observe(
+            document.documentElement
+        );
+
+    }
+
+})();
+
 </script>
 
 </body>
