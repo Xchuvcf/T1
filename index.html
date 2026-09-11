@@ -3,116 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>البث المباشر متعدد السيرفرات</title>
+    <title>البث المباشر الذكي</title>
     
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
     
     <style>
-        body, html { margin: 0; padding: 0; background-color: #0c0c0c; height: 100%; width: 100%; display: flex; flex-direction: column; }
+        body, html { margin: 0; padding: 0; background: #0c0c0c; height: 100%; color: white; font-family: Tahoma, sans-serif; overflow: hidden; }
         
-        /* منطقة الفيديو */
-        #video-container { width: 100%; flex-grow: 1; background: #000; }
-        #player { width: 100%; height: 100%; }
+        #player-container { width: 100%; height: 100%; display: none; }
         
-        /* منطقة السيرفرات */
-        #servers-container { padding: 15px; background: #1a1a1a; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-        .server-btn {
-            background: #333; color: #fff; border: 1px solid #444; padding: 10px 20px;
-            border-radius: 5px; cursor: pointer; font-family: Tahoma, Arial; font-weight: bold; transition: 0.3s;
-        }
-        .server-btn:hover { background: #555; }
-        .server-btn.active { background: #e50914; border-color: #e50914; }
+        /* تصميم شاشة التحميل */
+        #loading { display: flex; align-items: center; justify-content: center; height: 100%; flex-direction: column; }
+        .loader { border: 4px solid #333; border-top: 4px solid #e50914; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        /* شاشة التحميل الأولية */
-        #loading { color: #fff; text-align: center; padding: 20px; font-family: Tahoma; }
+        /* الإطار المخفي الذي يقوم بالعمل القذر */
+        #spy-frame { width: 0; height: 0; border: none; position: absolute; visibility: hidden; }
     </style>
 </head>
 <body>
 
-    <div id="video-container">
-        <div id="loading">جاري البحث عن سيرفرات البث...</div>
-        <div id="player"></div>
+    <div id="loading">
+        <div class="loader"></div>
+        <h3 id="status-text">جاري استخراج السيرفرات وتخطي الإعلانات...</h3>
     </div>
 
-    <div id="servers-container">
-        <!-- سيتم إضافة الأزرار هنا عبر الجافاسكربت -->
-    </div>
+    <div id="player-container"></div>
+
+    <!-- إطار التجسس المخفي الذي سيفتح صفحة الإعلانات بالخفاء -->
+    <iframe id="spy-frame"></iframe>
 
     <script>
         const workerUrl = "https://xmsb.danapana303.workers.dev/";
         const targetStream = "https://daddylive.app/player/embed.php?id=91";
         
-        let clapprPlayer = null;
+        // تحميل الصفحة الملغمة داخل الإطار المخفي
+        document.getElementById('spy-frame').src = workerUrl + "?url=" + encodeURIComponent(targetStream);
 
-        // دالة لجلب السيرفرات من الـ Worker
-        async function fetchStreams() {
-            try {
-                // إضافة &api=1 للحصول على قائمة JSON
-                const response = await fetch(`${workerUrl}?api=1&url=${encodeURIComponent(targetStream)}`);
-                const data = await response.json();
+        let streamsFound = [];
+        let player = null;
+
+        // الاستماع للرسائل القادمة من إطار التجسس (الـ Worker سيرسل الرابط هنا)
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'hls_found') {
+                const streamUrl = event.data.url;
                 
-                document.getElementById('loading').style.display = 'none';
-
-                if(data.error) {
-                    alert("خطأ: " + data.error);
-                    return;
+                // التأكد من عدم تكرار نفس الرابط
+                if (!streamsFound.includes(streamUrl)) {
+                    streamsFound.push(streamUrl);
+                    
+                    // تشغيل أول رابط يتم اصطياده فوراً
+                    if (streamsFound.length === 1) {
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('player-container').style.display = 'block';
+                        
+                        player = new Clappr.Player({
+                            source: streamUrl,
+                            parentId: "#player-container",
+                            width: '100%',
+                            height: '100%',
+                            autoPlay: true,
+                            mimeType: "application/vnd.apple.mpegurl"
+                        });
+                        
+                        // تدمير الإطار الملغم نهائياً بعد الحصول على البث لتخفيف الضغط
+                        setTimeout(() => {
+                            const spyFrame = document.getElementById('spy-frame');
+                            if(spyFrame) spyFrame.remove();
+                        }, 2000);
+                    }
                 }
-
-                if(data.streams && data.streams.length > 0) {
-                    setupPlayer(data.streams[0]); // تشغيل السيرفر الأول كافتراضي
-                    createButtons(data.streams);
-                } else {
-                    document.getElementById('loading').style.display = 'block';
-                    document.getElementById('loading').innerText = 'لم يتم العثور على سيرفرات متاحة.';
-                }
-            } catch(e) {
-                console.error(e);
-                document.getElementById('loading').innerText = 'حدث خطأ في الاتصال بالخادم.';
             }
-        }
+        });
 
-        // دالة لتهيئة المشغل
-        function setupPlayer(streamUrl) {
-            if(clapprPlayer) {
-                clapprPlayer.load({ source: streamUrl, mimeType: "application/vnd.apple.mpegurl" });
-                clapprPlayer.play();
-            } else {
-                clapprPlayer = new Clappr.Player({
-                    source: streamUrl,
-                    parentId: "#player",
-                    width: '100%',
-                    height: '100%',
-                    autoPlay: true,
-                    mimeType: "application/vnd.apple.mpegurl"
-                });
+        // مهلة زمنية (Timeout) في حال فشل الاستخراج
+        setTimeout(() => {
+            if (streamsFound.length === 0) {
+                document.getElementById('status-text').innerHTML = '<span style="color:#e50914;">فشل الاتصال بالسيرفر الأصلي. يرجى تحديث الصفحة أو المحاولة لاحقاً.</span>';
+                document.querySelector('.loader').style.display = 'none';
             }
-        }
-
-        // دالة لإنشاء الأزرار
-        function createButtons(streams) {
-            const container = document.getElementById('servers-container');
-            container.innerHTML = ''; 
-
-            streams.forEach((streamUrl, index) => {
-                const btn = document.createElement('button');
-                btn.className = `server-btn ${index === 0 ? 'active' : ''}`;
-                btn.innerText = `سيرفر ${index + 1}`;
-                
-                btn.onclick = function() {
-                    // إزالة التفعيل من كل الأزرار
-                    document.querySelectorAll('.server-btn').forEach(b => b.classList.remove('active'));
-                    // تفعيل الزر المضغوط
-                    this.classList.add('active');
-                    // تغيير البث
-                    setupPlayer(streamUrl);
-                };
-                
-                container.appendChild(btn);
-            });
-        }
-
-        // تشغيل الدالة فور تحميل الصفحة
-        fetchStreams();
+        }, 15000); // 15 ثانية كحد أقصى للبحث
     </script>
 
 </body>
