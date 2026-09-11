@@ -2,28 +2,23 @@
   "streams": {
 
     "CH1": {
-      "name": "القناة الأولى",
-      "iframe": "iframe1"
+      "name": "YouTube",
+      "iframe": "youtube1"
     },
 
     "CH2": {
-      "name": "القناة الثانية",
-      "iframe": "iframe2"
+      "name": "YasirTV",
+      "iframe": "yasirtv1"
     },
 
     "CH3": {
-      "name": "القناة الثالثة",
-      "iframe": "iframe3"
+      "name": "موقع خارجي",
+      "iframe": "site2"
     },
 
     "CH4": {
-      "name": "القناة الرابعة",
-      "iframe": "iframe4"
-    },
-
-    "CH5": {
-      "name": "القناة الخامسة",
-      "iframe": "iframe1"
+      "name": "YouTube",
+      "iframe": "youtube1"
     }
 
   }
