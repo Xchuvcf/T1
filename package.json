@@ -2,12 +2,12 @@
   "name": "smart-hls-extractor",
   "version": "2.0.0",
   "private": true,
-  "description": "Smart HLS stream discovery service",
+  "description": "Smart HLS stream extractor for Vercel",
   "engines": {
-    "node": ">=20"
+    "node": "24.x"
   },
   "dependencies": {
-    "@sparticuz/chromium": "^149.0.0",
-    "puppeteer-core": "^25.10.0"
+    "@sparticuz/chromium": "^143.0.0",
+    "puppeteer-core": "^24.31.0"
   }
 }
