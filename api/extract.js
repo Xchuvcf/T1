@@ -1,5 +1,5 @@
 const chromium = require('@sparticuz/chromium');
-const puppeteer = require('puppeteer-core'); // استخدام النسخة الأساسية فقط
+const puppeteer = require('puppeteer-core');
 
 module.exports = async (req, res) => {
     const targetUrl = req.query.url;
@@ -8,7 +8,6 @@ module.exports = async (req, res) => {
     let browser;
     try {
         browser = await puppeteer.launch({
-            // إضافة أمر التخفي ضمن إعدادات المتصفح
             args: [...chromium.args, '--disable-blink-features=AutomationControlled'],
             defaultViewport: chromium.defaultViewport,
             executablePath: await chromium.executablePath(),
@@ -17,7 +16,6 @@ module.exports = async (req, res) => {
         
         const page = await browser.newPage();
         
-        // حقن كود التخفي يدوياً لخداع جدار الحماية (Stealth Mode)
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
         await page.evaluateOnNewDocument(() => {
             Object.defineProperty(navigator, 'webdriver', { get: () => false });
@@ -25,18 +23,25 @@ module.exports = async (req, res) => {
 
         let streamUrl = null;
 
-        await page.setRequestInterception(true);
+        // الاستماع لطلبات الشبكة للبحث عن m3u8 أو m3u
         page.on('request', request => {
-            if (request.url().includes('.m3u8')) {
-                streamUrl = request.url();
-                request.abort(); // إيقاف التحميل فور العثور على الرابط
-            } else {
-                request.continue();
+            const reqUrl = request.url();
+            if (reqUrl.includes('.m3u8') || reqUrl.includes('.m3u')) {
+                streamUrl = reqUrl;
             }
         });
 
-        await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 8000 });
-        await new Promise(r => setTimeout(r, 1000));
+        // فتح الصفحة وانتظار تحميل الشبكة بالكامل
+        await page.goto(targetUrl, { waitUntil: 'networkidle0', timeout: 15000 });
+
+        // محاكاة نقرة بالماوس داخل الصفحة لإجبار المشغل على العمل إذا كان يتطلب تفاعلاً
+        try {
+            await page.mouse.click(100, 100);
+        } catch (e) {}
+
+        // انتظار إضافي لمدة 4 ثوانٍ لالتقاط الرابط فور طلبه
+        await new Promise(r => setTimeout(r, 4000));
+
         await browser.close();
 
         if (streamUrl) {
