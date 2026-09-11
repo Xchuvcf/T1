@@ -1,8 +1,13 @@
 {
-  "name": "stream-extractor",
-  "version": "1.0.0",
+  "name": "smart-hls-extractor",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Smart HLS stream discovery service",
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
-    "puppeteer-core": "^21.0.0",
-    "@sparticuz/chromium": "^119.0.0"
+    "@sparticuz/chromium": "^149.0.0",
+    "puppeteer-core": "^25.10.0"
   }
 }
