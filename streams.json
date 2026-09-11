@@ -1,16 +1,25 @@
 {
   "streams": {
-    "match1": {
-      "name": "البث الأول",
-      "match": "4828487"
+
+    "CH1": {
+      "name": "القناة الأولى",
+      "url": "https://example-site-1.com/player"
     },
-    "match2": {
-      "name": "البث الثاني",
-      "match": "4828488"
+
+    "CH2": {
+      "name": "القناة الثانية",
+      "url": "https://example-site-2.com/live"
     },
-    "match3": {
-      "name": "البث الثالث",
-      "match": "4828489"
+
+    "CH3": {
+      "name": "القناة الثالثة",
+      "url": "https://example-site-3.com/watch"
+    },
+
+    "CH4": {
+      "name": "القناة الرابعة",
+      "url": "https://example-site-4.com/player/123"
     }
+
   }
 }
