@@ -1,0 +1,25 @@
+{
+  "iframes": {
+
+    "iframe1": {
+      "name": "المشغل الأول",
+      "url": "<iframe width="560" height="315" src="https://www.youtube.com/embed/nIyaCRNwxhU?si=0WMYrxiKElnug1S-" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>"
+    },
+
+    "iframe2": {
+      "name": "المشغل الثاني",
+      "url": "https://example2.com/player"
+    },
+
+    "iframe3": {
+      "name": "المشغل الثالث",
+      "url": "https://example3.com/live"
+    },
+
+    "iframe4": {
+      "name": "المشغل الرابع",
+      "url": "https://example4.com/watch"
+    }
+
+  }
+}
