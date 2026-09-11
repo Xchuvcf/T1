@@ -3,22 +3,27 @@
 
     "CH1": {
       "name": "القناة الأولى",
-      "url": "https://www.youtube.com/embed/nIyaCRNwxhU?si=0WMYrxiKElnug1S-"
+      "iframe": "iframe1"
     },
 
     "CH2": {
       "name": "القناة الثانية",
-      "url": "https://example-site-2.com/live"
+      "iframe": "iframe2"
     },
 
     "CH3": {
       "name": "القناة الثالثة",
-      "url": "https://example-site-3.com/watch"
+      "iframe": "iframe3"
     },
 
     "CH4": {
       "name": "القناة الرابعة",
-      "url": "https://example-site-4.com/player/123"
+      "iframe": "iframe4"
+    },
+
+    "CH5": {
+      "name": "القناة الخامسة",
+      "iframe": "iframe1"
     }
 
   }
