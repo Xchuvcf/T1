@@ -1,0 +1,25 @@
+{
+  "streams": {
+
+    "CH1": {
+      "name": "YouTube",
+      "iframe": "youtube1"
+    },
+
+    "CH2": {
+      "name": "YasirTV",
+      "iframe": "yasirtv1"
+    },
+
+    "CH3": {
+      "name": "موقع خارجي",
+      "iframe": "site2"
+    },
+
+    "CH4": {
+      "name": "be1ar",
+      "iframe": "be1ar"
+    }
+
+  }
+}
