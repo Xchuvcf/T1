@@ -1,117 +1,56 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>البث المباشر - خالي من الإعلانات</title>
-    
-    <!-- استدعاء مشغل Clappr لتشغيل البث -->
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
-    
-    <style>
-        /* تصفير الهوامش وجعل الخلفية سوداء بالكامل */
-        body, html {
-            margin: 0;
-            padding: 0;
-            background: #0c0c0c;
-            height: 100%;
-            color: white;
-            font-family: Tahoma, Arial, sans-serif;
-            overflow: hidden;
-        }
-        
-        /* حاوية الفيديو المخفية افتراضياً حتى يجهز البث */
-        #player-container {
-            width: 100%;
-            height: 100%;
-            display: none;
-        }
-        
-        /* تصميم شاشة التحميل الاحترافية */
-        #loading-screen {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            flex-direction: column;
-            text-align: center;
-            padding: 20px;
-        }
-        
-        .loader {
-            border: 4px solid #333;
-            border-top: 4px solid #e50914;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-        
-        @keyframes spin { 
-            0% { transform: rotate(0deg); } 
-            100% { transform: rotate(360deg); } 
-        }
-        
-        .error-text {
-            color: #e50914;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body>
+const chromium = require('@sparticuz/chromium');
+const puppeteer = require('puppeteer-core');
 
-    <!-- شاشة التحميل الأولية -->
-    <div id="loading-screen">
-        <div class="loader" id="spinner"></div>
-        <h3 id="status-text">جاري استخراج رابط البث النقي... الرجاء الانتظار (قد يستغرق 10 ثوانٍ)</h3>
-    </div>
+module.exports = async (req, res) => {
+    const targetUrl = req.query.url;
+    if (!targetUrl) return res.status(400).json({ error: 'Missing URL parameter' });
 
-    <!-- حاوية مشغل الفيديو -->
-    <div id="player-container"></div>
+    let browser;
+    try {
+        browser = await puppeteer.launch({
+            args: [...chromium.args, '--disable-blink-features=AutomationControlled'],
+            defaultViewport: chromium.defaultViewport,
+            executablePath: await chromium.executablePath(),
+            headless: chromium.headless,
+        });
+        
+        const page = await browser.newPage();
+        
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        await page.evaluateOnNewDocument(() => {
+            Object.defineProperty(navigator, 'webdriver', { get: () => false });
+        });
 
-    <script>
-        // الرابط الداخلي لـ Vercel Serverless Function الذي أنشأناه
-        const apiUrl = "/api/extract"; 
-        // رابط البث المستهدف
-        const targetStream = "https://daddylive.app/player/embed.php?id=91";
+        let streamUrl = null;
 
-        async function fetchCleanStream() {
-            try {
-                // طلب استخراج البث من الخادم الخلفي (Vercel)
-                const response = await fetch(`${apiUrl}?url=${encodeURIComponent(targetStream)}`);
-                const data = await response.json();
-                
-                if (data.success && data.stream) {
-                    // نجاح الاستخراج: إخفاء شاشة التحميل وإظهار المشغل
-                    document.getElementById('loading-screen').style.display = 'none';
-                    document.getElementById('player-container').style.display = 'block';
-                    
-                    // تشغيل الفيديو عبر Clappr
-                    var player = new Clappr.Player({
-                        source: data.stream,
-                        parentId: "#player-container",
-                        width: '100%',
-                        height: '100%',
-                        autoPlay: true,
-                        mimeType: "application/vnd.apple.mpegurl"
-                    });
-                } else {
-                    // فشل العثور على الرابط
-                    document.getElementById('spinner').style.display = 'none';
-                    document.getElementById('status-text').innerHTML = `<span class="error-text">فشل الاستخراج: ${data.error || 'لم يتم العثور على الرابط'}</span>`;
-                }
-            } catch (err) {
-                // فشل الاتصال بدالة Vercel من الأساس
-                document.getElementById('spinner').style.display = 'none';
-                document.getElementById('status-text').innerHTML = '<span class="error-text">حدث خطأ في الاتصال بالسيرفر الداخلي. تأكد من رفع مجلد api بشكل صحيح.</span>';
+        // الاستماع لطلبات الشبكة للبحث عن m3u8 أو m3u
+        page.on('request', request => {
+            const reqUrl = request.url();
+            if (reqUrl.includes('.m3u8') || reqUrl.includes('.m3u')) {
+                streamUrl = reqUrl;
             }
+        });
+
+        // فتح الصفحة وانتظار تحميل الشبكة بالكامل
+        await page.goto(targetUrl, { waitUntil: 'networkidle0', timeout: 15000 });
+
+        // محاكاة نقرة بالماوس داخل الصفحة لإجبار المشغل على العمل إذا كان يتطلب تفاعلاً
+        try {
+            await page.mouse.click(100, 100);
+        } catch (e) {}
+
+        // انتظار إضافي لمدة 4 ثوانٍ لالتقاط الرابط فور طلبه
+        await new Promise(r => setTimeout(r, 4000));
+
+        await browser.close();
+
+        if (streamUrl) {
+            res.status(200).json({ success: true, stream: streamUrl });
+        } else {
+            res.status(404).json({ success: false, error: 'لم يتم العثور على رابط البث' });
         }
-
-        // تشغيل العملية فور فتح الصفحة
-        fetchCleanStream();
-    </script>
-
-</body>
-</html>
+    } catch (error) {
+        if (browser) await browser.close();
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
