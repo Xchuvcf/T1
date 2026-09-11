@@ -4,13 +4,12 @@ const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 
 puppeteer.use(StealthPlugin());
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
     const targetUrl = req.query.url;
     if (!targetUrl) return res.status(400).json({ error: 'Missing URL parameter' });
 
     let browser;
     try {
-        // تشغيل متصفح خفيف متوافق مع خوادم Vercel المجانية
         browser = await puppeteer.launch({
             args: chromium.args,
             defaultViewport: chromium.defaultViewport,
@@ -27,15 +26,15 @@ export default async function handler(req, res) {
         page.on('request', request => {
             if (request.url().includes('.m3u8')) {
                 streamUrl = request.url();
-                request.abort(); // إيقاف التحميل فور سحب الرابط لتوفير الوقت
+                request.abort(); 
             } else {
                 request.continue();
             }
         });
 
-        // زيارة موقع البث والانتظار
-        await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
-        await new Promise(r => setTimeout(r, 2000));
+        // تم تقليل وقت الانتظار ليتناسب مع حدود Vercel المجانية
+        await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 8000 });
+        await new Promise(r => setTimeout(r, 1000));
         await browser.close();
 
         if (streamUrl) {
@@ -47,4 +46,4 @@ export default async function handler(req, res) {
         if (browser) await browser.close();
         res.status(500).json({ success: false, error: error.message });
     }
-}
+};
