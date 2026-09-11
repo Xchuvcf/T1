@@ -1,32 +1,52 @@
-const chromium = require("@sparticuz/chromium");
-const puppeteer = require("puppeteer-core");
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 
 const CONFIG = {
-    navigationTimeout: 18000,
-    discoveryTimeout: 12000,
-    validationTimeout: 5000,
-    maxCandidates: 100,
-    maxCandidateChecks: 8,
+    navigationTimeout: 15000,
+    discoveryTime: 7000,
+    validationTimeout: 3500,
+    maxCandidates: 60,
+    maxValidation: 6
 };
 
-function send(res, status, data) {
+/* -------------------------------------------------------
+   Response helper
+------------------------------------------------------- */
+
+function response(res, status, data) {
     res.status(status);
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.setHeader("Cache-Control", "no-store");
-    res.setHeader("X-Content-Type-Options", "nosniff");
+
+    res.setHeader(
+        "Content-Type",
+        "application/json; charset=utf-8"
+    );
+
+    res.setHeader(
+        "Cache-Control",
+        "no-store"
+    );
+
+    res.setHeader(
+        "X-Content-Type-Options",
+        "nosniff"
+    );
+
     return res.json(data);
 }
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+/* -------------------------------------------------------
+   URL utilities
+------------------------------------------------------- */
 
-function normalizeUrl(value, base = null) {
+function normalizeUrl(value, base = undefined) {
+    if (
+        !value ||
+        typeof value !== "string"
+    ) {
+        return null;
+    }
+
     try {
-        if (!value || typeof value !== "string") {
-            return null;
-        }
-
         value = value.trim();
 
         if (
@@ -37,22 +57,31 @@ function normalizeUrl(value, base = null) {
             return null;
         }
 
-        const url = new URL(value, base || undefined);
+        const url = new URL(
+            value,
+            base
+        );
 
-        if (!["http:", "https:"].includes(url.protocol)) {
+        if (
+            url.protocol !== "http:" &&
+            url.protocol !== "https:"
+        ) {
             return null;
         }
 
         url.hash = "";
 
         return url.toString();
+
     } catch {
         return null;
     }
 }
 
 function isPrivateHost(hostname) {
-    const host = hostname.toLowerCase();
+
+    const host =
+        hostname.toLowerCase();
 
     if (
         host === "localhost" ||
@@ -65,21 +94,30 @@ function isPrivateHost(hostname) {
         return true;
     }
 
-    const ipv4 = host.match(
-        /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
-    );
+    const ipv4 =
+        host.match(
+            /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
+        );
 
     if (!ipv4) {
         return false;
     }
 
-    const parts = ipv4.slice(1).map(Number);
+    const p =
+        ipv4.slice(1).map(Number);
 
-    if (parts.some(n => n > 255)) {
+    if (
+        p.some(
+            n => n < 0 || n > 255
+        )
+    ) {
         return true;
     }
 
-    const [a, b] = parts;
+    const [
+        a,
+        b
+    ] = p;
 
     return (
         a === 10 ||
@@ -91,7 +129,9 @@ function isPrivateHost(hostname) {
 }
 
 function validateTarget(value) {
-    const url = normalizeUrl(value);
+
+    const url =
+        normalizeUrl(value);
 
     if (!url) {
         return {
@@ -100,12 +140,18 @@ function validateTarget(value) {
         };
     }
 
-    const parsed = new URL(url);
+    const parsed =
+        new URL(url);
 
-    if (isPrivateHost(parsed.hostname)) {
+    if (
+        isPrivateHost(
+            parsed.hostname
+        )
+    ) {
         return {
             ok: false,
-            error: "هذا العنوان غير مسموح."
+            error:
+                "هذا العنوان غير مسموح."
         };
     }
 
@@ -115,21 +161,28 @@ function validateTarget(value) {
     };
 }
 
-function looksLikeHls(value) {
-    if (!value) {
+/* -------------------------------------------------------
+   HLS detection
+------------------------------------------------------- */
+
+function isHlsUrl(url) {
+
+    if (!url) {
         return false;
     }
 
-    const v = value.toLowerCase();
+    const value =
+        url.toLowerCase();
 
     return (
-        v.includes(".m3u8") ||
-        v.includes(".m3u?")
+        value.includes(".m3u8") ||
+        value.includes(".m3u?")
     );
 }
 
-function looksLikePlaylistText(text) {
-    if (!text || typeof text !== "string") {
+function isHlsText(text) {
+
+    if (!text) {
         return false;
     }
 
@@ -139,248 +192,350 @@ function looksLikePlaylistText(text) {
     );
 }
 
-function scoreCandidate(url, meta = {}) {
-    const value = url.toLowerCase();
+/* -------------------------------------------------------
+   Candidate scoring
+------------------------------------------------------- */
 
-    let score = 0;
+function score(url, meta = {}) {
 
-    // HLS
-    if (value.includes(".m3u8")) score += 100;
-    if (value.includes("master")) score += 35;
-    if (value.includes("index")) score += 15;
-    if (value.includes("playlist")) score += 15;
-    if (value.includes("live")) score += 10;
-    if (value.includes("stream")) score += 8;
+    const value =
+        url.toLowerCase();
 
-    // Network source
-    if (meta.resourceType === "media") score += 30;
-    if (meta.resourceType === "xhr") score += 20;
-    if (meta.resourceType === "fetch") score += 20;
+    let points = 0;
 
-    // Prefer HTTPS
-    if (value.startsWith("https://")) score += 5;
+    if (
+        value.includes(".m3u8")
+    ) {
+        points += 100;
+    }
 
-    // Avoid obvious non-stream endpoints
-    const negative = [
+    if (
+        value.includes("master")
+    ) {
+        points += 35;
+    }
+
+    if (
+        value.includes("playlist")
+    ) {
+        points += 15;
+    }
+
+    if (
+        value.includes("index")
+    ) {
+        points += 10;
+    }
+
+    if (
+        value.includes("live")
+    ) {
+        points += 10;
+    }
+
+    if (
+        value.includes("stream")
+    ) {
+        points += 8;
+    }
+
+    if (
+        meta.resourceType === "media"
+    ) {
+        points += 30;
+    }
+
+    if (
+        meta.resourceType === "xhr"
+    ) {
+        points += 20;
+    }
+
+    if (
+        meta.resourceType === "fetch"
+    ) {
+        points += 20;
+    }
+
+    if (
+        value.startsWith("https://")
+    ) {
+        points += 5;
+    }
+
+    const badWords = [
         "analytics",
         "tracking",
         "telemetry",
         "doubleclick",
         "googletagmanager",
-        "facebook.com/tr",
-        "pixel",
         "/ads/",
         "/advert",
+        "facebook.com/tr"
     ];
 
-    for (const item of negative) {
-        if (value.includes(item)) {
-            score -= 50;
+    for (
+        const word of badWords
+    ) {
+        if (
+            value.includes(word)
+        ) {
+            points -= 50;
         }
     }
 
-    return score;
+    return points;
 }
 
-async function launchBrowser() {
+/* -------------------------------------------------------
+   Browser
+------------------------------------------------------- */
+
+async function createBrowser() {
+
     return puppeteer.launch({
+
         args: [
             ...chromium.args,
 
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
+
             "--disable-gpu",
 
             "--disable-background-networking",
             "--disable-background-timer-throttling",
             "--disable-renderer-backgrounding",
 
-            "--disable-features=Translate,BackForwardCache",
+            "--disable-features=Translate,BackForwardCache"
         ],
 
-        executablePath: await chromium.executablePath(),
-
-        headless: true,
+        executablePath:
+            await chromium.executablePath(),
 
         defaultViewport: {
             width: 1280,
             height: 720,
             deviceScaleFactor: 1
-        }
+        },
+
+        headless:
+            chromium.headless
     });
 }
 
-async function validateHls(page, url) {
-    try {
-        return await page.evaluate(
-            async ({ url, timeout }) => {
-                const controller = new AbortController();
+/* -------------------------------------------------------
+   Text URL extraction
+------------------------------------------------------- */
 
-                const timer = setTimeout(
-                    () => controller.abort(),
-                    timeout
-                );
+function extractHlsUrls(
+    text,
+    baseUrl
+) {
 
-                try {
-                    const response = await fetch(url, {
-                        method: "GET",
-                        cache: "no-store",
-                        signal: controller.signal
-                    });
+    const found =
+        new Set();
 
-                    const contentType =
-                        response.headers.get("content-type") || "";
-
-                    const text =
-                        await response.text();
-
-                    const hls =
-                        contentType
-                            .toLowerCase()
-                            .includes("mpegurl") ||
-                        text.includes("#EXTM3U") ||
-                        text.includes("#EXT-X-");
-
-                    return {
-                        ok: response.ok,
-                        status: response.status,
-                        contentType,
-                        hls,
-                        length: text.length
-                    };
-                } catch (error) {
-                    return {
-                        ok: false,
-                        error: error.message
-                    };
-                } finally {
-                    clearTimeout(timer);
-                }
-            },
-            {
-                url,
-                timeout: CONFIG.validationTimeout
-            }
-        );
-    } catch {
-        return {
-            ok: false
-        };
-    }
-}
-
-function extractUrlsFromText(text, baseUrl) {
     if (!text) {
         return [];
     }
 
-    const results = new Set();
-
     const absolute =
         /https?:\/\/[^\s"'<>\\]+/gi;
 
-    for (const match of text.matchAll(absolute)) {
-        const clean = match[0]
-            .replace(/[),;]+$/g, "");
+    for (
+        const match of
+        text.matchAll(absolute)
+    ) {
 
-        const normalized =
-            normalizeUrl(clean);
+        const value =
+            match[0]
+                .replace(
+                    /[),;]+$/g,
+                    ""
+                );
 
-        if (normalized && looksLikeHls(normalized)) {
-            results.add(normalized);
+        const url =
+            normalizeUrl(value);
+
+        if (
+            url &&
+            isHlsUrl(url)
+        ) {
+            found.add(url);
         }
     }
 
-    // Relative playlist references
     const relative =
         /["'`]([^"'`]+\.m3u8(?:\?[^"'`]*)?)["'`]/gi;
 
-    for (const match of text.matchAll(relative)) {
-        const normalized =
-            normalizeUrl(match[1], baseUrl);
+    for (
+        const match of
+        text.matchAll(relative)
+    ) {
 
-        if (normalized) {
-            results.add(normalized);
+        const url =
+            normalizeUrl(
+                match[1],
+                baseUrl
+            );
+
+        if (url) {
+            found.add(url);
         }
     }
 
-    return [...results];
+    return [
+        ...found
+    ];
 }
 
-async function extractFromPage(page, addCandidate) {
+/* -------------------------------------------------------
+   HLS validation
+------------------------------------------------------- */
+
+async function validateHls(
+    page,
+    url
+) {
+
     try {
-        const data = await page.evaluate(() => {
-            return {
-                html: document.documentElement?.outerHTML || "",
-                scripts: [
-                    ...document.scripts
-                ].map(script => script.textContent || ""),
-                videos: [
-                    ...document.querySelectorAll("video")
-                ].map(video => ({
-                    src: video.currentSrc || video.src || "",
-                    poster: video.poster || ""
-                }))
-            };
-        });
 
-        for (const video of data.videos || []) {
-            if (looksLikeHls(video.src)) {
-                addCandidate(video.src, {
-                    resourceType: "media"
-                });
+        return await page.evaluate(
+            async ({
+                url,
+                timeout
+            }) => {
+
+                const controller =
+                    new AbortController();
+
+                const timer =
+                    setTimeout(
+                        () =>
+                            controller.abort(),
+                        timeout
+                    );
+
+                try {
+
+                    const res =
+                        await fetch(
+                            url,
+                            {
+                                method: "GET",
+                                cache: "no-store",
+                                signal:
+                                    controller.signal
+                            }
+                        );
+
+                    const type =
+                        res.headers.get(
+                            "content-type"
+                        ) || "";
+
+                    const text =
+                        await res.text();
+
+                    const hls =
+                        type
+                            .toLowerCase()
+                            .includes(
+                                "mpegurl"
+                            ) ||
+                        text.includes(
+                            "#EXTM3U"
+                        ) ||
+                        text.includes(
+                            "#EXT-X-"
+                        );
+
+                    return {
+                        ok: res.ok,
+                        status:
+                            res.status,
+                        hls,
+                        type,
+                        length:
+                            text.length
+                    };
+
+                } catch (error) {
+
+                    return {
+                        ok: false,
+                        hls: false,
+                        error:
+                            error.message
+                    };
+
+                } finally {
+
+                    clearTimeout(
+                        timer
+                    );
+                }
+
+            },
+            {
+                url,
+                timeout:
+                    CONFIG.validationTimeout
             }
-        }
+        );
 
-        const combined = [
-            data.html,
-            ...(data.scripts || [])
-        ].join("\n");
+    } catch {
 
-        for (const url of extractUrlsFromText(
-            combined,
-            page.url()
-        )) {
-            addCandidate(url, {
-                resourceType: "script"
-            });
-        }
-    } catch {}
+        return {
+            ok: false,
+            hls: false
+        };
+    }
 }
 
-async function extract(targetUrl) {
+/* -------------------------------------------------------
+   Main extraction
+------------------------------------------------------- */
+
+async function extract(
+    targetUrl
+) {
+
     let browser = null;
 
     try {
-        browser = await launchBrowser();
 
-        const page = await browser.newPage();
+        console.log(
+            "[extract] starting"
+        );
+
+        browser =
+            await createBrowser();
+
+        console.log(
+            "[extract] browser started"
+        );
+
+        const page =
+            await browser.newPage();
 
         await page.setUserAgent(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-            "AppleWebKit/537.36 (KHTML, like Gecko) " +
-            "Chrome/140.0.0.0 Safari/537.36"
+            "AppleWebKit/537.36 " +
+            "(KHTML, like Gecko) " +
+            "Chrome/149.0.0.0 Safari/537.36"
         );
 
-        await page.setExtraHTTPHeaders({
-            "Accept-Language":
-                "en-US,en;q=0.9,ar;q=0.8"
-        });
+        const candidates =
+            new Map();
 
-        await page.evaluateOnNewDocument(() => {
-            Object.defineProperty(
-                navigator,
-                "webdriver",
-                {
-                    get: () => false
-                }
-            );
-        });
+        function addCandidate(
+            url,
+            meta = {}
+        ) {
 
-        const candidates = new Map();
-
-        function addCandidate(url, meta = {}) {
             const normalized =
                 normalizeUrl(url);
 
@@ -388,32 +543,42 @@ async function extract(targetUrl) {
                 return;
             }
 
-            if (!looksLikeHls(normalized)) {
+            if (
+                !isHlsUrl(normalized)
+            ) {
                 return;
             }
 
-            if (candidates.size >= CONFIG.maxCandidates) {
+            if (
+                candidates.size >=
+                CONFIG.maxCandidates
+            ) {
                 return;
             }
 
-            const score =
-                scoreCandidate(
+            const points =
+                score(
                     normalized,
                     meta
                 );
 
-            const previous =
-                candidates.get(normalized);
+            const existing =
+                candidates.get(
+                    normalized
+                );
 
             if (
-                !previous ||
-                score > previous.score
+                !existing ||
+                points > existing.score
             ) {
+
                 candidates.set(
                     normalized,
                     {
-                        url: normalized,
-                        score,
+                        url:
+                            normalized,
+                        score:
+                            points,
                         resourceType:
                             meta.resourceType ||
                             "unknown"
@@ -422,232 +587,482 @@ async function extract(targetUrl) {
             }
         }
 
-        // Network requests
-        page.on("request", request => {
-            try {
-                addCandidate(
-                    request.url(),
-                    {
-                        resourceType:
-                            request.resourceType()
-                    }
-                );
-            } catch {}
-        });
+        /* Network requests */
 
-        // Network responses
-        page.on("response", response => {
-            try {
-                const url =
-                    response.url();
+        page.on(
+            "request",
+            request => {
 
-                const type =
-                    response.headers()
-                        ["content-type"] || "";
-
-                const resourceType =
-                    response.request()
-                        .resourceType();
-
-                if (
-                    looksLikeHls(url) ||
-                    type
-                        .toLowerCase()
-                        .includes("mpegurl")
-                ) {
-                    addCandidate(url, {
-                        resourceType
-                    });
-                }
-            } catch {}
-        });
-
-        await page.goto(targetUrl, {
-            waitUntil: "domcontentloaded",
-            timeout: CONFIG.navigationTimeout
-        }).catch(() => {});
-
-        // Give JavaScript/player time to initialize.
-        await sleep(1800);
-
-        // Try normal video/player interaction.
-        await page.evaluate(() => {
-            const selectors = [
-                "video",
-                "button",
-                "[role='button']",
-                ".play",
-                ".vjs-big-play-button",
-                ".jw-icon-display",
-                ".plyr__control--overlaid"
-            ];
-
-            for (const selector of selectors) {
-                for (const element of
-                    document.querySelectorAll(selector)) {
-                    try {
-                        element.click();
-                    } catch {}
-                }
-            }
-
-            for (const video of
-                document.querySelectorAll("video")) {
                 try {
-                    video.muted = true;
 
-                    const result =
-                        video.play();
-
-                    if (
-                        result &&
-                        typeof result.catch ===
-                        "function"
-                    ) {
-                        result.catch(() => {});
-                    }
-                } catch {}
-            }
-        }).catch(() => {});
-
-        const start = Date.now();
-
-        while (
-            Date.now() - start <
-            CONFIG.discoveryTimeout
-        ) {
-            await extractFromPage(
-                page,
-                addCandidate
-            );
-
-            const sorted =
-                [...candidates.values()]
-                    .sort(
-                        (a, b) =>
-                            b.score - a.score
+                    addCandidate(
+                        request.url(),
+                        {
+                            resourceType:
+                                request.resourceType()
+                        }
                     );
 
-            // Strong candidate found.
+                } catch {}
+            }
+        );
+
+        /* Network responses */
+
+        page.on(
+            "response",
+            response => {
+
+                try {
+
+                    const url =
+                        response.url();
+
+                    const type =
+                        response.headers()
+                            ["content-type"] ||
+                        "";
+
+                    const resourceType =
+                        response
+                            .request()
+                            .resourceType();
+
+                    if (
+                        isHlsUrl(url) ||
+                        type
+                            .toLowerCase()
+                            .includes(
+                                "mpegurl"
+                            )
+                    ) {
+
+                        addCandidate(
+                            url,
+                            {
+                                resourceType
+                            }
+                        );
+                    }
+
+                } catch {}
+            }
+        );
+
+        console.log(
+            "[extract] opening target"
+        );
+
+        await page.goto(
+            targetUrl,
+            {
+                waitUntil:
+                    "domcontentloaded",
+                timeout:
+                    CONFIG.navigationTimeout
+            }
+        ).catch(
+            error => {
+
+                console.log(
+                    "[extract] navigation:",
+                    error.message
+                );
+            }
+        );
+
+        /*
+         * Short wait only.
+         * We deliberately do NOT use networkidle0.
+         */
+
+        await new Promise(
+            resolve =>
+                setTimeout(
+                    resolve,
+                    1200
+                )
+        );
+
+        /* Try to activate normal players */
+
+        await page.evaluate(
+            () => {
+
+                const selectors = [
+                    "video",
+                    "button",
+                    "[role='button']",
+                    ".play",
+                    ".vjs-big-play-button",
+                    ".jw-icon-display",
+                    ".plyr__control--overlaid"
+                ];
+
+                for (
+                    const selector of
+                    selectors
+                ) {
+
+                    for (
+                        const element of
+                        document.querySelectorAll(
+                            selector
+                        )
+                    ) {
+
+                        try {
+                            element.click();
+                        } catch {}
+                    }
+                }
+
+                for (
+                    const video of
+                    document.querySelectorAll(
+                        "video"
+                    )
+                ) {
+
+                    try {
+
+                        video.muted =
+                            true;
+
+                        const result =
+                            video.play();
+
+                        if (
+                            result &&
+                            typeof result.catch ===
+                            "function"
+                        ) {
+                            result.catch(
+                                () => {}
+                            );
+                        }
+
+                    } catch {}
+                }
+
+            }
+        ).catch(
+            () => {}
+        );
+
+        const deadline =
+            Date.now() +
+            CONFIG.discoveryTime;
+
+        while (
+            Date.now() < deadline
+        ) {
+
+            /* Inspect HTML and scripts */
+
+            try {
+
+                const pageData =
+                    await page.evaluate(
+                        () => {
+
+                            return {
+                                html:
+                                    document
+                                        .documentElement
+                                        ?.outerHTML ||
+                                    "",
+
+                                scripts:
+                                    [
+                                        ...document
+                                            .scripts
+                                    ].map(
+                                        s =>
+                                            s.textContent ||
+                                            ""
+                                    ),
+
+                                videos:
+                                    [
+                                        ...document
+                                            .querySelectorAll(
+                                                "video"
+                                            )
+                                    ].map(
+                                        video => ({
+                                            src:
+                                                video
+                                                    .currentSrc ||
+                                                video.src ||
+                                                ""
+                                        })
+                                    )
+                            };
+                        }
+                    );
+
+                for (
+                    const video of
+                    pageData.videos
+                ) {
+
+                    addCandidate(
+                        video.src,
+                        {
+                            resourceType:
+                                "media"
+                        }
+                    );
+                }
+
+                const text =
+                    [
+                        pageData.html,
+                        ...pageData.scripts
+                    ].join("\n");
+
+                for (
+                    const url of
+                    extractHlsUrls(
+                        text,
+                        page.url()
+                    )
+                ) {
+
+                    addCandidate(
+                        url,
+                        {
+                            resourceType:
+                                "script"
+                        }
+                    );
+                }
+
+            } catch {}
+
+            const sorted =
+                [
+                    ...candidates.values()
+                ].sort(
+                    (a, b) =>
+                        b.score -
+                        a.score
+                );
+
             if (
-                sorted.length &&
-                sorted[0].score >= 125
+                sorted.length > 0 &&
+                sorted[0].score >= 130
             ) {
                 break;
             }
 
-            await sleep(500);
+            await new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        300
+                    )
+            );
         }
 
         const sorted =
-            [...candidates.values()]
+            [
+                ...candidates.values()
+            ]
                 .sort(
                     (a, b) =>
-                        b.score - a.score
+                        b.score -
+                        a.score
                 )
                 .slice(
                     0,
-                    CONFIG.maxCandidateChecks
+                    CONFIG.maxValidation
                 );
 
-        if (!sorted.length) {
+        console.log(
+            "[extract] candidates:",
+            sorted.length
+        );
+
+        if (
+            sorted.length === 0
+        ) {
+
             return {
                 success: false,
                 error:
-                    "لم يتم العثور على رابط HLS."
+                    "لم يتم العثور على مصدر HLS."
             };
         }
 
-        // Validate best candidates.
-        for (const candidate of sorted) {
-            const validation =
+        /* Validate strongest candidates */
+
+        for (
+            const candidate of
+            sorted
+        ) {
+
+            console.log(
+                "[extract] validating:",
+                candidate.url
+            );
+
+            const check =
                 await validateHls(
                     page,
                     candidate.url
                 );
 
             if (
-                validation.ok &&
-                validation.hls
+                check.ok &&
+                check.hls
             ) {
+
+                console.log(
+                    "[extract] verified"
+                );
+
                 return {
                     success: true,
-                    stream: candidate.url,
-                    type: "hls",
-                    verified: true,
-                    score: candidate.score
+                    stream:
+                        candidate.url,
+                    type:
+                        "hls",
+                    verified:
+                        true,
+                    score:
+                        candidate.score
                 };
             }
         }
 
-        // Some providers block direct validation.
-        // Return the strongest network candidate.
+        /*
+         * Some streaming servers reject
+         * validation requests while allowing
+         * the browser/player to use the URL.
+         */
+
         return {
             success: true,
-            stream: sorted[0].url,
-            type: "hls",
-            verified: false,
-            score: sorted[0].score
+            stream:
+                sorted[0].url,
+            type:
+                "hls",
+            verified:
+                false,
+            score:
+                sorted[0].score
         };
 
     } finally {
+
         if (browser) {
-            await browser.close()
-                .catch(() => {});
+
+            console.log(
+                "[extract] closing browser"
+            );
+
+            await browser
+                .close()
+                .catch(
+                    () => {}
+                );
         }
     }
 }
 
-module.exports = async (req, res) => {
-    if (req.method !== "GET") {
-        return send(res, 405, {
-            success: false,
-            error: "Method Not Allowed"
-        });
+/* -------------------------------------------------------
+   Vercel handler
+------------------------------------------------------- */
+
+export default async function handler(
+    req,
+    res
+) {
+
+    if (
+        req.method !== "GET"
+    ) {
+
+        return response(
+            res,
+            405,
+            {
+                success: false,
+                error:
+                    "Method Not Allowed"
+            }
+        );
     }
 
     const rawUrl =
-        typeof req.query?.url === "string"
+        typeof req.query?.url ===
+        "string"
             ? req.query.url
             : "";
 
     if (!rawUrl) {
-        return send(res, 400, {
-            success: false,
-            error:
-                "Missing URL parameter."
-        });
+
+        return response(
+            res,
+            400,
+            {
+                success: false,
+                error:
+                    "Missing URL parameter."
+            }
+        );
     }
 
     const target =
-        validateTarget(rawUrl);
+        validateTarget(
+            rawUrl
+        );
 
     if (!target.ok) {
-        return send(res, 400, {
-            success: false,
-            error: target.error
-        });
+
+        return response(
+            res,
+            400,
+            {
+                success: false,
+                error:
+                    target.error
+            }
+        );
     }
 
     try {
-        const result =
-            await extract(target.url);
 
-        return send(
+        const result =
+            await extract(
+                target.url
+            );
+
+        return response(
             res,
-            result.success ? 200 : 404,
+            result.success
+                ? 200
+                : 404,
             result
         );
+
     } catch (error) {
+
         console.error(
-            "HLS_EXTRACTOR_ERROR",
+            "[extract] fatal:",
             error
         );
 
-        return send(res, 500, {
-            success: false,
-            error:
-                "حدث خطأ أثناء تحليل المصدر."
-        });
+        return response(
+            res,
+            500,
+            {
+                success: false,
+                error:
+                    "حدث خطأ أثناء تحليل المصدر."
+            }
+        );
     }
-};
+}
