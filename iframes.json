@@ -1,23 +1,22 @@
 {
   "iframes": {
 
-    "iframe1": {
-      "name": "المشغل الأول",
-      "url": "https://www.youtube.com/embed/nIyaCRNwxhU?si=0WMYrxiKElnug1S-"
-
-    "iframe2": {
-      "name": "المشغل الثاني",
-      "url": "https://example2.com/player"
+    "youtube1": {
+      "type": "iframe",
+      "name": "YouTube",
+      "code": "<iframe width=\"560\" height=\"315\" src=\"https://www.youtube.com/embed/nIyaCRNwxhU?si=0WMYrxiKElnug1S-\" title=\"YouTube video player\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>"
     },
 
-    "iframe3": {
-      "name": "المشغل الثالث",
-      "url": "https://example3.com/live"
+    "yasirtv1": {
+      "type": "src",
+      "name": "YasirTV",
+      "url": "https://912acsss8af382.yasirtv.com/playerv5.php?match=4828487"
     },
 
-    "iframe4": {
-      "name": "المشغل الرابع",
-      "url": "https://example4.com/watch"
+    "site2": {
+      "type": "src",
+      "name": "موقع خارجي",
+      "url": "https://example.com/player"
     }
 
   }
