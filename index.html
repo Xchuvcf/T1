@@ -3,53 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>البث المباشر النقي</title>
+    <title>البث المباشر متعدد السيرفرات</title>
     
-    <!-- استدعاء مشغل الفيديو Clappr الأساسي -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/clappr@latest/dist/clappr.min.js"></script>
     
     <style>
-        /* إزالة الحواف وجعل المشغل يملأ الشاشة بالكامل باللون الأسود */
-        body, html {
-            margin: 0;
-            padding: 0;
-            background-color: #000;
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
+        body, html { margin: 0; padding: 0; background-color: #0c0c0c; height: 100%; width: 100%; display: flex; flex-direction: column; }
+        
+        /* منطقة الفيديو */
+        #video-container { width: 100%; flex-grow: 1; background: #000; }
+        #player { width: 100%; height: 100%; }
+        
+        /* منطقة السيرفرات */
+        #servers-container { padding: 15px; background: #1a1a1a; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .server-btn {
+            background: #333; color: #fff; border: 1px solid #444; padding: 10px 20px;
+            border-radius: 5px; cursor: pointer; font-family: Tahoma, Arial; font-weight: bold; transition: 0.3s;
         }
-        #player {
-            width: 100%;
-            height: 100%;
-        }
+        .server-btn:hover { background: #555; }
+        .server-btn.active { background: #e50914; border-color: #e50914; }
+        
+        /* شاشة التحميل الأولية */
+        #loading { color: #fff; text-align: center; padding: 20px; font-family: Tahoma; }
     </style>
 </head>
 <body>
 
-    <div id="player"></div>
+    <div id="video-container">
+        <div id="loading">جاري البحث عن سيرفرات البث...</div>
+        <div id="player"></div>
+    </div>
+
+    <div id="servers-container">
+        <!-- سيتم إضافة الأزرار هنا عبر الجافاسكربت -->
+    </div>
 
     <script>
-        // 1. رابط Cloudflare Worker الخاص بك
         const workerUrl = "https://xmsb.danapana303.workers.dev/";
-        
-        // 2. رابط البث المستهدف
         const targetStream = "https://daddylive.app/player/embed.php?id=91";
         
-        // 3. بناء الرابط النهائي ليمر عبر خادمك
-        const finalUrl = workerUrl + "?url=" + encodeURIComponent(targetStream);
+        let clapprPlayer = null;
 
-        // 4. تشغيل الفيديو في موقعك مباشرة
-        var player = new Clappr.Player({
-            source: finalUrl,
-            parentId: "#player",
-            width: '100%',
-            height: '100%',
-            autoPlay: true,
-            mute: false,
-            
-            // التصحيح: إخبار المشغل أن هذا الملف هو بث مباشر (HLS/m3u8) وليس صفحة ويب
-            mimeType: "application/vnd.apple.mpegurl"
-        });
+        // دالة لجلب السيرفرات من الـ Worker
+        async function fetchStreams() {
+            try {
+                // إضافة &api=1 للحصول على قائمة JSON
+                const response = await fetch(`${workerUrl}?api=1&url=${encodeURIComponent(targetStream)}`);
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+
+                if(data.error) {
+                    alert("خطأ: " + data.error);
+                    return;
+                }
+
+                if(data.streams && data.streams.length > 0) {
+                    setupPlayer(data.streams[0]); // تشغيل السيرفر الأول كافتراضي
+                    createButtons(data.streams);
+                } else {
+                    document.getElementById('loading').style.display = 'block';
+                    document.getElementById('loading').innerText = 'لم يتم العثور على سيرفرات متاحة.';
+                }
+            } catch(e) {
+                console.error(e);
+                document.getElementById('loading').innerText = 'حدث خطأ في الاتصال بالخادم.';
+            }
+        }
+
+        // دالة لتهيئة المشغل
+        function setupPlayer(streamUrl) {
+            if(clapprPlayer) {
+                clapprPlayer.load({ source: streamUrl, mimeType: "application/vnd.apple.mpegurl" });
+                clapprPlayer.play();
+            } else {
+                clapprPlayer = new Clappr.Player({
+                    source: streamUrl,
+                    parentId: "#player",
+                    width: '100%',
+                    height: '100%',
+                    autoPlay: true,
+                    mimeType: "application/vnd.apple.mpegurl"
+                });
+            }
+        }
+
+        // دالة لإنشاء الأزرار
+        function createButtons(streams) {
+            const container = document.getElementById('servers-container');
+            container.innerHTML = ''; 
+
+            streams.forEach((streamUrl, index) => {
+                const btn = document.createElement('button');
+                btn.className = `server-btn ${index === 0 ? 'active' : ''}`;
+                btn.innerText = `سيرفر ${index + 1}`;
+                
+                btn.onclick = function() {
+                    // إزالة التفعيل من كل الأزرار
+                    document.querySelectorAll('.server-btn').forEach(b => b.classList.remove('active'));
+                    // تفعيل الزر المضغوط
+                    this.classList.add('active');
+                    // تغيير البث
+                    setupPlayer(streamUrl);
+                };
+                
+                container.appendChild(btn);
+            });
+        }
+
+        // تشغيل الدالة فور تحميل الصفحة
+        fetchStreams();
     </script>
 
 </body>
