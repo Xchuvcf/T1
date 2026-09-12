@@ -21,6 +21,7 @@
     "testmyiframr": {
       "type": "iframe",
       "name": "be1ar",
-      "code": "<iframe src="https://freeshot.live/embed/beINSPORTSAR2.php" width="100%" height="100%" scrolling="no" frameborder="0" allowfullscreen="true" allow="autoplay;" allowtransparency="true" id="thatframe"> </iframe>"
+      "code": "<iframe src=\"https://freeshot.live/embed/beINSPORTSAR2.php\" width=\"100%\" height=\"100%\" scrolling=\"no\" frameborder=\"0\" allowfullscreen=\"true\" allow=\"autoplay;\" allowtransparency=\"true\" id=\"thatframe\"></iframe>"
+    }
   }
 }
