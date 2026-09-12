@@ -591,10 +591,12 @@ body {
             ].join(" ")
         );
 
-        iframe.setAttribute(
-            "referrerpolicy",
-            "no-referrer"
-        );
+        /*
+         * ملاحظة: ما نحط referrerpolicy=no-referrer هنا،
+         * لأن رابط iframe.src الحين بيروح لبروكسي عندك
+         * (ad_proxy.php)، ولو منعنا الـ Referer بيوصل فاضي
+         * وبيفشل أي تحقق Referer موجود بالبروكسي.
+         */
 
     }
 
@@ -614,7 +616,12 @@ body {
      * المباشر (مع بقاء حماية sandbox فقط).
      */
 
-    const AD_PROXY_URL = "https://msxc.unaux.com/ad_proxy.php";
+    const AD_PROXY_URL = "https://msxc.unaux.com/ad_proxyy.php";
+
+    /*
+     * لازم تطابق بالضبط قيمة PROXY_KEY داخل ad_proxy.php
+     */
+    const AD_PROXY_KEY = "";
 
 
     function buildStreamUrl(url) {
@@ -623,9 +630,20 @@ body {
             return url;
         }
 
-        return AD_PROXY_URL +
+        let proxied =
+            AD_PROXY_URL +
             "?url=" +
             encodeURIComponent(url);
+
+        if (AD_PROXY_KEY) {
+
+            proxied +=
+                "&key=" +
+                encodeURIComponent(AD_PROXY_KEY);
+
+        }
+
+        return proxied;
 
     }
 
