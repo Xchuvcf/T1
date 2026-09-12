@@ -1,6 +1,5 @@
 {
   "streams": {
-
     "CH1": {
       "name": "YouTube",
       "iframe": "youtube1"
@@ -17,9 +16,53 @@
     },
 
     "CH4": {
+      "name": "be0ar",
+      "iframe": "be0ar"
+    },
+
+    "CH5": {
       "name": "be1ar",
       "iframe": "be1ar"
-    }
+    },
 
+    "CH6": {
+      "name": "be2ar",
+      "iframe": "be2ar"
+    },
+
+    "CH7": {
+      "name": "be3ar",
+      "iframe": "be3ar"
+    },
+
+    "CH8": {
+      "name": "be4ar",
+      "iframe": "be4ar"
+    },
+
+    "CH9": {
+      "name": "be5ar",
+      "iframe": "be5ar"
+    },
+
+    "CH10": {
+      "name": "be6ar",
+      "iframe": "be6ar"
+    },
+
+    "CH11": {
+      "name": "be7ar",
+      "iframe": "be7ar"
+    },
+
+    "CH12": {
+      "name": "be8ar",
+      "iframe": "be8ar"
+    },
+
+    "CH13": {
+      "name": "be9ar",
+      "iframe": "be9ar"
+    }
   }
 }
