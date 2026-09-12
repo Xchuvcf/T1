@@ -6,16 +6,64 @@
       "code": "<iframe width=\"560\" height=\"315\" src=\"https://www.youtube.com/embed/nIyaCRNwxhU?si=0WMYrxiKElnug1S-\" title=\"YouTube video player\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>"
     },
 
-    "yasirtv1": {
+    "be0ar": {
       "type": "src",
-      "name": "YasirTV",
+      "name": "be0ar",
+      "url": "https://freeshot.live/embed/beINSPORTSAR0.php"
+    },
+
+    "be1ar": {
+      "type": "src",
+      "name": "be1ar",
+      "url": "https://freeshot.live/embed/beINSPORTSAR1.php"
+    },
+
+    "be2ar": {
+      "type": "src",
+      "name": "be2ar",
       "url": "https://freeshot.live/embed/beINSPORTSAR2.php"
     },
 
-    "site2": {
+    "be3ar": {
       "type": "src",
-      "name": "موقع خارجي",
-      "url": "https://example.com/player"
+      "name": "be3ar",
+      "url": "https://freeshot.live/embed/beINSPORTSAR3.php"
+    },
+
+    "be4ar": {
+      "type": "src",
+      "name": "be4ar",
+      "url": "https://freeshot.live/embed/beINSPORTSAR4.php"
+    },
+
+    "be5ar": {
+      "type": "src",
+      "name": "be5ar",
+      "url": "https://freeshot.live/embed/beINSPORTSAR5.php"
+    },
+
+    "be6ar": {
+      "type": "src",
+      "name": "be6ar",
+      "url": "https://freeshot.live/embed/beINSPORTSAR6.php"
+    },
+
+    "be7ar": {
+      "type": "src",
+      "name": "be7ar",
+      "url": "https://freeshot.live/embed/beINSPORTSAR7.php"
+    },
+
+    "be8ar": {
+      "type": "src",
+      "name": "be8ar",
+      "url": "https://freeshot.live/embed/beINSPORTSAR8.php"
+    },
+
+    "be9ar": {
+      "type": "src",
+      "name": "be9ar",
+      "url": "https://freeshot.live/embed/beINSPORTSAR9.php"
     },
 
     "testmyiframr": {
