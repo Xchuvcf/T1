@@ -162,6 +162,179 @@ body {
 
 
     /* =================================================
+       🛡️ AD BLOCKER — الحماية من الإعلانات
+
+       يعمل على مستويين:
+
+       1) الصفحة الرئيسية (هذا الملف):
+          - منع أي نافذة منبثقة (popup / popunder)
+          - منع أي محاولة تحويل (redirect) للصفحة كاملة
+          - إزالة أي عنصر دخيل يُحقن مباشرة في <body>
+            (مثل لافتات أو أزرار وهمية)
+
+       2) الـ iframe (المشغل الخارجي):
+          - نستخدم خاصية sandbox لمنع الإعلان من:
+            فتح نوافذ جديدة، تحويل الصفحة بالكامل،
+            فتح نوافذ تنبيه (alert/confirm)، أو تحميل ملفات تلقائيًا.
+
+       ⚠️ ملاحظة مهمة وصادقة:
+       لا يمكن لأي كود جافاسكريبت في صفحتك أن يدخل إلى
+       داخل محتوى iframe خارجي (من نطاق مختلف) ويحذف
+       الإعلانات المرسومة بصريًا بداخله — هذا تمنعه
+       المتصفحات نفسها لأسباب أمنية (Same-Origin Policy)،
+       وليس قصورًا في هذا الكود. ما يمكن فعله فعليًا
+       (وهو الأهم عمليًا) هو منع الإعلان من "الهروب" خارج
+       مشغله عبر نافذة منبثقة أو تحويل كامل للصفحة —
+       وهذا ما يفعله هذا الكود.
+       ================================================= */
+
+    (function adBlocker() {
+
+        /* -----------------------------------------------
+           1) منع كل النوافذ المنبثقة نهائيًا
+           ----------------------------------------------- */
+
+        const blockedOpen = function () {
+            console.warn("AdBlocker: تم منع نافذة منبثقة");
+            return null;
+        };
+
+        try {
+            Object.defineProperty(window, "open", {
+                configurable: false,
+                writable: false,
+                value: blockedOpen
+            });
+        } catch (e) {
+            window.open = blockedOpen;
+        }
+
+
+        /* -----------------------------------------------
+           2) منع تحويل الصفحة الكامل (Popunder Redirect)
+              عبر أزرار وهمية أو نقرات خفية فوق المشغل
+           ----------------------------------------------- */
+
+        document.addEventListener(
+            "click",
+            function (event) {
+
+                const target = event.target;
+
+                if (!target || !target.closest) {
+                    return;
+                }
+
+                const link = target.closest("a[target='_blank']");
+
+                if (link && !container.contains(link)) {
+
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    console.warn(
+                        "AdBlocker: تم منع فتح رابط خارجي مشبوه"
+                    );
+
+                }
+
+            },
+            true
+        );
+
+
+        /* -----------------------------------------------
+           3) منع فتح نوافذ منبثقة عبر الضغط الوسطي
+              (Middle Click) على روابط
+           ----------------------------------------------- */
+
+        document.addEventListener(
+            "auxclick",
+            function (event) {
+
+                if (event.button === 1) {
+
+                    const target = event.target;
+
+                    if (target && target.closest &&
+                        target.closest("a")) {
+
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                    }
+
+                }
+
+            },
+            true
+        );
+
+
+        /* -----------------------------------------------
+           4) إزالة أي عنصر يُحقن مباشرة في body
+              (خارج #app) — لافتات، أزرار وهمية،
+              طبقات إعلانية كاملة الشاشة
+           ----------------------------------------------- */
+
+        const appRoot =
+            document.getElementById("app");
+
+        const bodyGuard = new MutationObserver(function (mutations) {
+
+            mutations.forEach(function (mutation) {
+
+                mutation.addedNodes.forEach(function (node) {
+
+                    if (
+                        node.nodeType === 1 &&
+                        node !== appRoot &&
+                        node.id !== "app"
+                    ) {
+
+                        console.warn(
+                            "AdBlocker: تمت إزالة عنصر دخيل:",
+                            node
+                        );
+
+                        node.remove();
+
+                    }
+
+                });
+
+            });
+
+        });
+
+        bodyGuard.observe(document.body, {
+            childList: true
+        });
+
+
+        /* -----------------------------------------------
+           5) منع فتح نوافذ alert / confirm / prompt
+              المزعجة التي تستخدمها بعض الإعلانات
+           ----------------------------------------------- */
+
+        window.alert = function () {
+            console.warn("AdBlocker: تم منع نافذة alert");
+        };
+
+        window.confirm = function () {
+            console.warn("AdBlocker: تم منع نافذة confirm");
+            return false;
+        };
+
+        window.prompt = function () {
+            console.warn("AdBlocker: تم منع نافذة prompt");
+            return null;
+        };
+
+    })();
+
+
+    /* =================================================
        ملفات الإعدادات
        ================================================= */
 
@@ -391,12 +564,71 @@ body {
         iframe.style.overflow =
             "hidden";
 
+
+        /*
+         * 🛡️ الحماية الأهم: sandbox
+         *
+         * نسمح فقط بما يحتاجه المشغل (سكربتات + نفس المصدر
+         * + نماذج + العرض بملء الشاشة)، ونمنع تمامًا:
+         * - فتح نوافذ منبثقة (لا يوجد allow-popups)
+         * - تحويل الصفحة بالكامل لرابط آخر (لا يوجد
+         *   allow-top-navigation)
+         * - نوافذ alert/confirm (لا يوجد allow-modals)
+         * - التنزيل التلقائي للملفات (لا يوجد allow-downloads)
+         *
+         * هذا يوقف تقريبًا كل أشكال "اضغط في أي مكان
+         * فيفتح إعلان" لأن المتصفح نفسه يمنعها قبل أن
+         * تصل لأي مكان.
+         */
+
+        iframe.setAttribute(
+            "sandbox",
+            [
+                "allow-scripts",
+                "allow-same-origin",
+                "allow-forms",
+                "allow-presentation"
+            ].join(" ")
+        );
+
+        iframe.setAttribute(
+            "referrerpolicy",
+            "no-referrer"
+        );
+
     }
 
 
     /* =================================================
        تشغيل SRC
        ================================================= */
+
+    /*
+     * 🛡️ رابط بروكسي حجب الإعلانات (ad_proxy.php)
+     *
+     * غيّر هذا الرابط ليطابق مكان رفع ملف ad_proxy.php
+     * على استضافتك، مثال:
+     * "https://your-domain.com/ad_proxy.php"
+     *
+     * اتركه فارغًا "" لتعطيل البروكسي والرجوع للتحميل
+     * المباشر (مع بقاء حماية sandbox فقط).
+     */
+
+    const AD_PROXY_URL = "https://msxc.unaux.com/ad_proxy.php";
+
+
+    function buildStreamUrl(url) {
+
+        if (!AD_PROXY_URL) {
+            return url;
+        }
+
+        return AD_PROXY_URL +
+            "?url=" +
+            encodeURIComponent(url);
+
+    }
+
 
     function createFromSrc(url) {
 
@@ -415,7 +647,8 @@ body {
             );
 
 
-        iframe.src = url;
+        iframe.src =
+            buildStreamUrl(url);
 
 
         iframe.title =
@@ -485,8 +718,25 @@ body {
 
 
         /*
-         * ننقله إلى الصفحة
+         * ننقله إلى الصفحة — عبر بروكسي حجب الإعلانات
+         * (نفس المنطق المستخدم بـ createFromSrc)
          */
+
+        const originalSrc =
+            iframe.getAttribute("src");
+
+        if (
+            originalSrc &&
+            isValidURL(originalSrc)
+        ) {
+
+            iframe.setAttribute(
+                "src",
+                buildStreamUrl(originalSrc)
+            );
+
+        }
+
 
         prepareIframe(iframe);
 
